@@ -19,10 +19,7 @@ To use the Cilium Tetragon integration, ensure the following:
 
 ### Step 1: Install Integration Assets
 
-Before collecting data from Tetragon, install the required assets for this integration in Kibana:
-
-1. In Kibana, navigate to **Settings** > **Install Cilium Tetragon Integration**.
-2. Alternatively, go to **⊕ Add Cilium Tetragon** > **Add Integration Only** (skip Elastic Agent installation, which is unsupported for this integration).
+Click the "Install Cilium Tetragon Assets" button in this integration to install the required assets into Kibana.
 
 ### Step 2: Configure Tetragon for JSON Export
 
