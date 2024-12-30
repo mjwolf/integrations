@@ -1,0 +1,7 @@
+- source_dataset: falco.alerts_agent
+  rules:
+    - target_dataset: falco.alerts_cncf
+      if: ctx.agent?.type == null
+      namespace:
+        - "{{data_stream.namespace}}"
+        - default

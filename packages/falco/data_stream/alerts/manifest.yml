@@ -1,4 +1,5 @@
 title: "Falco Alerts"
+dataset: falco.alerts_agent
 type: logs
 streams:
   - input: tcp

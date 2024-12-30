@@ -1,4 +1,9 @@
 # newer versions go on top
+- version: "2.0.0"
+  changes:
+    - description: Set dateset based on data source (agent-based or CNCF native)
+      type: breaking-change
+      link: https://github.com/elastic/integrations/pull/999999
 - version: "1.2.0"
   changes:
     - description: Do not remove `event.original` in main ingest pipeline.
