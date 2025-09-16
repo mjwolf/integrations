@@ -1,39 +1,97 @@
-# Palo Alto Network Integration
+{{- generatedHeader }}
+{{/*
+This template can be used as a starting point for writing documentation for your new integration. For each section, fill in the details
+described in the comments.
 
-This integration is for Palo Alto Networks PAN-OS firewall monitoring logs received over Syslog or read from a file. It currently supports messages of [GlobalProtect](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/globalprotect-log-fields.html), [HIP Match](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/hip-match-log-fields.html), [Threat](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/threat-log-fields.html), [Traffic](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/traffic-log-fields.html), [User-ID](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/user-id-log-fields.html), [Authentication](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/authentication-log-fields), [Config](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/config-log-fields), [Correlated Events](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/correlated-events-log-fields), [Decryption](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/decryption-log-fields), [GTP](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/gtp-log-fields), [IP-Tag](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/ip-tag-log-fields), [SCTP](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/sctp-log-fields), [System](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/system-log-fields) and [Tunnel Inspection](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/tunnel-inspection-log-fields) types.
+Find more detailed documentation guidelines in https://www.elastic.co/docs/extend/integrations/documentation-guidelines
+*/}}
+# Palo Alto Next-Gen Firewall Integration for Elastic
 
-## Compatibility
+## Overview
+The Palo Alto Next-Gen Firewall integration for Elastic enables you to collect and parse logs from your Palo Alto Networks Next-Generation Firewalls (NGFWs). This integration allows you to monitor network traffic, analyze security threats, and gain insights into your network's performance and security posture. By leveraging the Elastic Stack, you can search, visualize, and alert on your firewall data, making it easier to detect and respond to security incidents.
 
-- This integration supports PAN-OS versions 8.1 to 11.0, but limited compatibility is expected for earlier versions. 
+This integration facilitates the collection of various log types, including traffic, threat, and system logs, providing a comprehensive view of your network activity.
 
-- This integration supports logs of GlobalProtect for PAN-OS version 9.1.3 or above.
+### Compatibility
+This integration is compatible with Palo Alto Networks PAN-OS. For specific version compatibility, please refer to the official Palo Alto Networks documentation for log forwarding.
 
-- This integration supports logs of User-ID for PAN-OS version 8.1 or above.
+### How it works
+This integration works by using Elastic Agent to receive log data from Palo Alto Next-Gen Firewalls. The firewalls can be configured to send logs via syslog (TCP or UDP) to the Elastic Agent, or the agent can be configured to read logs from a file. The agent then processes and forwards the logs to your Elastic deployment, where they are parsed and indexed.
 
-- This integration supports logs of Tunnel Inspection for PAN-OS version 9.1 or above.
+## What data does this integration collect?
+The Palo Alto Next-Gen Firewall integration collects the following types of logs:
+* **Traffic:** Detailed logs of all traffic passing through the firewall, including source and destination IP addresses, ports, protocols, and applications.
+* **Threat:** Logs related to security threats detected by the firewall, such as malware, vulnerabilities, and command-and-control (C2) traffic.
+* **System:** Logs related to the health and status of the firewall itself, including configuration changes, system errors, and administrative activities.
+* **Configuration:** Logs related to changes in the firewall's configuration.
+* **HIP Match:** Logs related to Host Information Profile (HIP) matching, which is used to enforce security policies based on the endpoint's security posture.
+* **URL Filtering:** Logs of web traffic that is allowed or blocked by the firewall's URL filtering policies.
 
-- This integration supports logs of configuration changes with and without details about the changed configuration(`before-change-detail` and `after-change-detail`). Please read [Note](#note) for more details.
+### Supported use cases
+This integration supports a variety of use cases, including:
+* **Security Monitoring:** Detect and respond to security threats by analyzing threat logs and correlating them with other security data.
+* **Network Troubleshooting:** Troubleshoot network connectivity issues by analyzing traffic logs and identifying network anomalies.
+* **Compliance:** Meet compliance requirements by collecting and archiving firewall logs.
+* **Application Monitoring:** Monitor the usage and performance of applications on your network.
 
-- This module has been tested with logs generated by devices running PAN-OS versions 7.1 to 11.0. 
+## What do I need to use this integration?
+To use this integration, you need:
+* A running Elastic deployment.
+* An installed Elastic Agent.
+* A Palo Alto Networks Next-Generation Firewall with a valid license.
+* Network connectivity between the firewall and the Elastic Agent.
+* The ability to configure log forwarding on your Palo Alto Networks firewall.
 
-## Configurations
+## How do I deploy this integration?
 
-To configure syslog monitoring, please follow the steps mentioned in the [_Configure Syslog Monitoring_](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/configure-syslog-monitoring).
+### Agent-based deployment
 
-## Note
-- If events are getting truncated, then increase `max_message_size` option for TCP and UDP input type.
-  - It can be found under Advanced Options and can be configured as per requirements. The default value of `max_message_size` is set to 50KiB.
+Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
 
-- If the TCP input is used, it is recommended that PAN-OS is configured to send syslog messages using the IETF (RFC 5424) format. In addition, RFC 6587 framing (Octet Counting) will be enabled by default on the TCP input.
-- If you want to see the configuration before and after the change(fields `before-change-detail` and `after-change-detail`) in the [config-log](https://docs.paloaltonetworks.com/pan-os/11-1/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/config-log-fields), please use the following [custom log format in the syslog server profile](https://docs.paloaltonetworks.com/pan-os/11-1/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/custom-logevent-format):
-  ``1,$receive_time,$serial,$type,$subtype,2561,$time_generated,$host,$vsys,$cmd,$admin,$client,$result,$path,$before-change-detail,$after-change-detail,$seqno,$actionflags,$dg_hier_level_1,$dg_hier_level_2,$dg_hier_level_3,$dg_hier_level_4,$vsys_name,$device_name,$dg_id,$comment,0,$high_res_timestamp``
+Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-## Logs
+### Onboard / configure
+To collect logs from your Palo Alto Next-Gen Firewall, you need to configure log forwarding on the firewall to send logs to the Elastic Agent. You can do this by following the instructions in the Palo Alto Networks documentation.
 
-### PAN-OS
+Here are the general steps:
+1.  **Configure a Syslog Server Profile:** In the PAN-OS web interface, create a syslog server profile that points to the IP address and port of the Elastic Agent.
+2.  **Create a Log Forwarding Profile:** Create a log forwarding profile that uses the syslog server profile you created in the previous step.
+3.  **Apply the Log Forwarding Profile to Security Policies:** Apply the log forwarding profile to your security policies to specify which logs should be forwarded to the Elastic Agent.
 
-This is the `panos` data stream.
+For detailed instructions, refer to the official Palo Alto Networks documentation: [Configure Log Forwarding](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/configure-log-forwarding)
 
-{{event "panos"}}
+### Validation
+After configuring the integration, you can validate that it is working by checking for data in Kibana. You can do this by navigating to the Discover app and searching for `data_stream.dataset : "panw.panos"`.
 
-{{fields "panos"}}
+## Troubleshooting
+
+For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).
+
+If you are not receiving logs, check the following:
+*   Ensure that there is network connectivity between the Palo Alto Networks firewall and the Elastic Agent.
+*   Verify that the syslog server profile and log forwarding profile are configured correctly on the firewall.
+*   Check the Elastic Agent logs for any errors.
+
+## Scaling
+
+For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
+
+## Reference
+
+### panos
+
+The `panos` data stream provides events from Palo Alto Networks Next-Generation Firewalls.
+
+#### panos fields
+
+{{ fields "panos" }}
+
+#### panos sample event
+
+{{ event "panos" }}
+
+### Inputs used
+{{ inputDocs }}
+
+### API usage
+This integration does not use any APIs to collect data.
