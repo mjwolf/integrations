@@ -1,4 +1,10 @@
 # newer versions go on top
+- version: "3.1.1"
+  changes:
+    - description: Update documentation
+      type: enhancement
+      link: https://github.com/elastic/integrations/pull/15946
+
 - version: "3.1.0"
   changes:
     - description: Preserve event.original on pipeline error.
