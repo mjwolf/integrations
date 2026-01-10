@@ -1,164 +1,120 @@
 # Service Info
 
 ## Common use cases
-- Security monitoring and threat detection from FortiGate firewall logs
-- Network traffic analysis and monitoring
-- Firewall policy compliance and auditing
-- Intrusion detection and prevention system (IPS) event monitoring
-- VPN connection monitoring and troubleshooting
-- Web filtering and application control monitoring
+
+*   **Security Threat Detection:** Monitor firewall traffic, intrusion prevention system (IPS) alerts, and antivirus logs to identify and mitigate cyber threats in real-time.
+*   **Compliance Auditing:** Maintain long-term audit trails of user activity, administrative changes, and system events to meet regulatory requirements such as PCI-DSS, HIPAA, or GDPR.
+*   **Network Troubleshooting:** Analyze traffic patterns and session data to diagnose connectivity issues, optimize bandwidth usage, and verify VPN performance.
 
 ## Data types collected
-- Traffic logs (firewall allow/deny decisions)
-- UTM logs (antivirus, web filter, application control, IPS, DNS filter)
-- Event logs (system events, HA events, configuration changes)
-- Authentication logs (VPN, admin, and user authentication events)
+
+This integration collects several categories of **Logs**, including:
+*   **Traffic Logs:** Information on allowed and denied sessions, including source/destination IPs and protocols.
+*   **Security Logs:** Events from specialized engines like Antivirus, Web Filter, Application Control, and IPS.
+*   **System Event Logs:** Administrative activities, hardware status, and HA (High Availability) events.
+*   **VPN Logs:** Detailed records of IPsec and SSL-VPN authentication and session activity.
 
 ## Compatibility
-This integration has been tested against FortiOS versions 6.x and 7.x up to 7.4.1. Newer versions are expected to work but have not been tested.
+
+*   **FortiOS:** Tested and compatible with FortiOS versions 6.x, 7.0, 7.2, and 7.4.
+*   **Elastic Agent:** Requires Elastic Agent version 7.14.0 or higher.
+*   **Deployment:** Supports physical appliances, virtual machines (FortiGate-VM), and cloud-native instances (AWS, Azure, GCP).
 
 ## Scaling and Performance
 
+*   **Throughput:** For high-traffic environments (e.g., >10,000 EPS), use **TCP** or **Reliable** (TCP with confirmation) mode to prevent data loss associated with UDP packet drops.
+*   **Hardware Impact:** Logging to external syslog servers generally has a lower impact on FortiGate CPU than local disk logging.
+*   **Optimization:** Use severity filters (e.g., `Information` vs `Debug`) to control the volume of data sent to the Elastic Agent and reduce network overhead.
 
 # Set Up Instructions
 
 ## Vendor prerequisites
-- FortiGate firewall with access to configure syslog settings
-- Network connectivity between FortiGate and Elastic Agent
 
+*   **Administrative Access:** Read/Write permissions to the FortiGate "Log & Report" and "System" settings.
+*   **Network Access:** Ensure the FortiGate appliance can reach the Elastic Agent host over the network via the designated syslog port (typically UDP/TCP 514).
+*   **License:** A valid FortiGuard license is required to generate logs for advanced security features (IPS, Antivirus, etc.).
+
+## Elastic prerequisites
+
+*   **Elastic Agent:** Must be installed and enrolled in a policy via Fleet.
+*   **Integration Policy:** The "Fortinet FortiGate" integration must be added to the agent's policy.
+*   **Input Configuration:** The integration must be configured to listen on the same protocol (UDP/TCP) and port as specified in the FortiGate settings.
 
 ## Vendor set up steps
 
-### Syslog Configuration
-You can configure FortiGate to send logs to the Elastic Agent using either the GUI or the CLI.
+### Method 1: Configuration via GUI
+1.  Log in to the FortiGate administration interface.
+2.  Navigate to **Log & Report > Log Settings**.
+3.  In the **Remote Logging and Archiving** section, enable **Send Logs to Syslog**.
+4.  Enter the IP address of the server where the Elastic Agent is running.
+5.  Specify the **Port** (default `514`). This must match your Elastic Agent policy.
+6.  Select the **Syslog Format**. CEF (Common Event Format) is recommended for best compatibility.
+7.  Choose the **Log Types** to send (e.g., **All**).
+8.  Set the minimum **Log Level** to `Information` to capture most relevant events.
+9.  Click **Apply**.
 
-**GUI Configuration:**
-
-1.  Log in to the FortiGate web-based manager (GUI).
-2.  Navigate to **Log & Report -> Log Settings**.
-3.  Enable **Send Logs to Syslog**.
-4.  In the IP address field, enter the IP address of the host where the Elastic Agent is installed.
-5.  Click **Apply**.
-6.  Under **Log Settings**, ensure that **Event Logging** and all desired log subtypes are enabled to generate and send the necessary logs.
-
-**CLI Configuration:**
-
-1.  Log in to the FortiGate CLI.
-2.  Use the following commands to configure the syslog server settings:
-
-    ```sh
+### Method 2: Configuration via CLI
+1.  Log in to the FortiGate CLI (SSH or Console).
+2.  Execute the following commands:
+    ```bash
     config log syslogd setting
         set status enable
-        set server "<elastic_agent_ip>"
-        set port <port>  // Default syslog ports are 514 for UDP and TCP
-        // For TCP with reliable syslog mode, ensure framing is set to rfc6587
-        set mode reliable
-        set format rfc6587
+        set server "ELASTIC_AGENT_IP"
+        set mode udp
+        set port 514
+        set format default
+        set facility local7
     end
     ```
-
-3.  Configure the appropriate log types and severity levels to be sent to the syslog server. For example:
-
-    ```sh
-    config log syslogd filter
-        set severity information
-        set forward-traffic enable
-        set local-traffic enable
-        set web enable
-        set antivirus enable
-        // Enable other UTM and event logs as needed
+3.  (Optional) Specify a source IP if the FortiGate has multiple interfaces:
+    ```bash
+    config log syslogd setting
+        set source-ip "FORTIGATE_INTERFACE_IP"
     end
     ```
-
-For more detailed information, refer to the [FortiGate CLI reference](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting).
 
 ## Kibana set up steps
-1.  In Kibana, navigate to **Management > Integrations**.
-2.  Search for "Fortinet FortiGate Firewall Logs" and select the integration.
-3.  Click **Add Fortinet FortiGate Firewall Logs**.
-4.  Configure the integration by selecting an input type and providing the necessary settings. This integration supports `TCP`, `UDP`, and `Log file` inputs.
 
-#### TCP Input Configuration
-
-This input collects logs over a TCP socket.
-
-| Setting | Description |
-|---|---|
-| **Listen Address** | The bind address for the TCP listener (e.g., `localhost`, `0.0.0.0`). |
-| **Listen Port** | The TCP port number to listen on (e.g., `9004`). |
-| **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
-
-Under **Advanced Options**, you can configure the following optional parameters:
-
-| Setting | Description |
-|---|---|
-| **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
-| **Internal networks** | Specify your internal network ranges (defaults to private address spaces). Supports CIDR notation and named ranges like `private`. |
-| **SSL Configuration** | Configure SSL options for encrypted communication. See the [SSL documentation](https://www.elastic.co/guide/en/beats/filebeat/current/configuration-ssl.html#ssl-common-config) for details. |
-| **Custom TCP Options** | `framing`: Specifies how messages are framed. Defaults to `rfc6587`, which is required for FortiGate's reliable syslog mode. <br> `max_message_size`: The maximum size of a log message (e.g., `50KiB`). <br> `max_connections`: The maximum number of simultaneous connections. |
-| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
-| **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
-| **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
-
-#### UDP Input Configuration
-
-This input collects logs over a UDP socket.
-
-| Setting | Description |
-|---|---|
-| **Listen Address** | The bind address for the UDP listener (e.g., `localhost`, `0.0.0.0`). |
-| **Listen Port** | The UDP port number to listen on (e.g., `9004`). |
-| **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
-
-Under **Advanced Options**, you can configure the following optional parameters:
-
-| Setting | Description |
-|---|---|
-| **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
-| **Internal networks** | Specify your internal network ranges (defaults to private address spaces). |
-| **Custom UDP Options** | `read_buffer`: The size of the read buffer for the UDP socket (e.g., `100MiB`). <br> `max_message_size`: The maximum size of a log message (e.g., `50KiB`). <br> `timeout`: The read timeout for the UDP socket (e.g., `300s`). |
-| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
-| **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
-| **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
-
-#### Log file Input Configuration
-
-This input collects logs directly from log files on the host where the Elastic Agent is running.
-
-| Setting | Description |
-|---|---|
-| **Paths** | A list of file paths to monitor (e.g., `/var/log/fortinet-firewall.log`). |
-| **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
-
-Under **Advanced Options**, you can configure the following optional parameters:
-
-| Setting | Description |
-|---|---|
-| **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
-| **Internal networks** | Specify your internal network ranges (defaults to private address spaces). |
-| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
-| **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
-| **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
-
-After configuring the input, assign the integration to an agent policy and click **Save and continue**.
+1.  In Kibana, go to **Management > Integrations**.
+2.  Search for **Fortinet FortiGate** and select it.
+3.  Click **Add Fortinet FortiGate**.
+4.  Select an existing agent policy or create a new one.
+5.  In the integration settings, specify the **Listen Port** and **Listen Address** (e.g., `0.0.0.0` or a specific interface IP).
+6.  Choose the **Protocol** (UDP or TCP) to match your FortiGate configuration.
+7.  Click **Save and continue** and then **Add agent to your hosts** if the agent is not yet deployed.
 
 # Validation Steps
-1. Verify logs are being sent from FortiGate by checking the syslog configuration
-2. In Kibana, navigate to Discover and search for `data_stream.dataset: "fortinet_fortigate.log"`
-3. Verify that events are appearing with recent timestamps
-4. Check the dashboards provided by the integration (Management > Dashboards > "Fortinet FortiGate Overview")
-5. Generate test traffic on FortiGate (e.g., web browsing, firewall hits) and verify corresponding logs appear in Kibana
+
+1.  **Generate Test Logs:** In the FortiGate CLI, run the command `diagnose log test` to generate a series of dummy logs.
+2.  **Verify Data Flow:** Go to Kibana **Observability > Logs > Stream** or **Discover**. 
+3.  **Check for Dataset:** Filter logs by `data_stream.dataset : "fortinet.fortigate"` to ensure logs are arriving.
+4.  **Review Dashboard:** Open the **[Logs Fortinet FortiGate] Overview** dashboard in Kibana to view pre-built visualizations.
 
 # Troubleshooting
 
 ## Common Configuration Issues
-- **No data collected**: Verify network connectivity between FortiGate and Elastic Agent. Check that the configured listen port matches the port configured on FortiGate.
-- **TCP framing issues**: When using TCP with reliable syslog mode, ensure framing is set to `rfc6587` in both FortiGate configuration and the integration settings.
+
+*   **Port Conflict:** Ensure no other service on the Elastic Agent host is using the configured syslog port (e.g., a native `rsyslog` service).
+*   **Firewall Blocking:** Verify that intermediate firewalls or host-based firewalls (iptables/firewalld) are allowing traffic on the syslog port.
+*   **Source IP Mismatch:** If the FortiGate is routing traffic through a specific interface, use `set source-ip` in the CLI to ensure the traffic originates from an expected IP.
+
+## Ingestion Errors
+
+*   **Parsing Failures:** If `error.message` appears in the logs, verify that the `format` on the FortiGate (default/CEF) matches the expected format in the integration settings.
+*   **Timestamp Mismatches:** Ensure the FortiGate and Elastic Agent host have synchronized clocks via NTP to prevent indexing delays or "future" logs.
+
+## API Authentication Errors
+
+Not specified (Syslog-based integration does not typically utilize API authentication for log forwarding).
 
 ## Vendor Resources
-- [FortiGate CLI Reference - Syslog Settings](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting)
+
+*   [Fortinet Technical Tip: How to configure syslog](https://community.fortinet.com/t5/FortiGate/Technical-Tip-How-to-configure-syslog-on-FortiGate/ta-p/331959)
+*   [Fortinet Documentation: Log Settings Reference](https://docs.fortinet.com/document/fortigate/latest/administration-guide/464816/log-settings)
+*   [Fortinet Community Support](https://community.fortinet.com/)
 
 # Documentation sites
-- [Fortinet Documentation Library](https://docs.fortinet.com/)
-- [FortiGate Administration Guide](https://docs.fortinet.com/product/fortigate)
-- [Technical Tip: How to configure syslog on FortiGate](https://community.fortinet.com/t5/FortiGate/Technical-Tip-How-to-configure-syslog-on-FortiGate/ta-p/331959)
+
+*   [Elastic Fortinet Integration Guide](https://www.elastic.co/docs/reference/integrations/fortinet_fortigate)
+*   [FortiGate Product Documentation](https://docs.fortinet.com/product/fortigate)
+*   [FortiOS CLI Reference](https://docs.fortinet.com/document/fortigate/latest/cli-reference)
