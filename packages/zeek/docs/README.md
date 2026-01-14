@@ -1,29 +1,211 @@
-# Zeek Integration
+# Zeek
 
-This is an integration for [Zeek](https://www.zeek.org/), which was formerly
-named Bro. Zeek is a passive, open-source network traffic analyzer. This
-integrations ingests the logs Zeek produces about the network traffic that it
-analyzes.
+> **Note**: This documentation was generated using AI and should be reviewed for accuracy.
 
-Zeek logs must be output in JSON format. This is normally done by appending the 
-[json-logs policy](https://docs.zeek.org/en/lts/scripts/policy/tuning/json-logs.zeek.html)
-to your `local.zeek` file. Add this line to your `local.zeek`.
+## Overview
 
-`@load policy/tuning/json-logs.zeek`
+This integration collects logs from [Zeek](https://www.zeek.org/), a powerful, open-source network traffic analyzer formerly known as Bro. It ingests the various logs Zeek produces about the network traffic it analyzes, providing rich data for security monitoring, threat hunting, and network forensics.
 
-## Compatibility
-This module has been developed against Zeek 2.6.1, but is expected to work with
-other versions of Zeek.
+To use this integration, you must configure Zeek to output its logs in JSON format. This is typically done by loading the `json-logs` policy. For more details, refer to the [Zeek JSON Logging Reference](https://docs.zeek.org/en/master/scripts/policy/tuning/json-logs.zeek.html).
 
-Zeek requires a Unix-like platform, and it currently supports Linux,
-FreeBSD, and Mac OS X.
+### Compatibility
 
-## Logs
-### capture_loss
+This integration has been tested with Zeek 2.6.1 but is expected to work with other versions of Zeek that support JSON-formatted logs. Zeek requires a Unix-like platform and currently supports Linux, FreeBSD, and macOS.
 
-The `capture_loss` dataset collects the Zeek capture_loss.log file,
-which contains packet loss rate data.
+### How it works
 
+The Zeek integration uses the Elastic Agent with a `logfile` input to collect logs directly from files. The agent monitors the specified log directory on your Zeek sensor, reads new log entries as they are written, parses the JSON format, and ships the data to your Elastic cluster. This provides a real-time stream of network metadata for analysis in Kibana.
+
+## What data does this integration collect?
+
+This integration collects a comprehensive set of logs from Zeek, each corresponding to a specific network protocol or activity type. These logs provide deep visibility into network behavior.
+
+**Data Streams:**
+- `capture_loss`: Packet loss rate data.
+- `connection`: TCP/UDP/ICMP connection summaries.
+- `dce_rpc`: Distributed Computing Environment/RPC data.
+- `dhcp`: DHCP lease activity.
+- `dnp3`: DNP3 industrial control protocol requests and replies.
+- `dns`: DNS queries and responses.
+- `dpd`: Dynamic protocol detection failures.
+- `files`: File analysis results from network traffic.
+- `ftp`: FTP commands and replies.
+- `http`: HTTP requests and replies.
+- `intel`: Matches from Zeek's Intelligence Framework.
+- `irc`: IRC commands and responses.
+- `kerberos`: Kerberos authentication data.
+- `known_certs`: SSL/TLS certificates observed on the network.
+- `known_hosts`: Timestamps for newly observed hosts.
+- `known_services`: Timestamps for newly observed services.
+- `modbus`: Modbus industrial control protocol commands and responses.
+- `mysql`: MySQL protocol data.
+- `notice`: Zeek notices and alerts.
+- `ntlm`: NT LAN Manager (NTLM) authentication data.
+- `ntp`: Network Time Protocol data.
+- `ocsp`: Online Certificate Status Protocol (OCSP) data.
+- `pe`: Portable Executable file analysis data.
+- `radius`: RADIUS authentication attempts.
+- `rdp`: Remote Desktop Protocol data.
+- `rfb`: Remote Framebuffer (VNC) data.
+- `signature`: Zeek signature engine matches.
+- `sip`: Session Initiation Protocol data.
+- `smb_cmd`: SMB commands.
+- `smb_files`: SMB file transfers.
+- `smb_mapping`: SMB tree mappings.
+- `smtp`: SMTP transactions.
+- `snmp`: SNMP messages.
+- `socks`: SOCKS proxy requests.
+- `software`: Details on software and services operated by network hosts.
+- `ssh`: SSH connection data.
+- `ssl`: SSL/TLS handshake information.
+- `stats`: Zeek performance and resource statistics.
+- `syslog`: Syslog messages captured from traffic.
+- `traceroute`: Traceroute detections.
+- `tunnel`: Tunneling protocol events (e.g., GRE, VXLAN).
+- `weird`: Unusual or unexpected network activity.
+- `x509`: X.509 certificate information and analysis.
+
+### Supported use cases
+
+The data collected by the Zeek integration supports a wide range of security and operational use cases, including:
+- **Network Security Monitoring (NSM):** Gaining deep visibility into all network traffic to detect anomalies and threats.
+- **Threat Hunting:** Proactively searching for indicators of compromise (IoCs) within network metadata.
+- **Incident Response:** Investigating security alerts by analyzing historical connection logs, file transfers, and protocol-specific details.
+- **Network Forensics:** Reconstructing network events and user activity during post-breach analysis.
+- **Operational Intelligence:** Monitoring network performance, identifying misconfigurations, and understanding application behavior.
+
+## What do I need to use this integration?
+
+Before you begin, ensure you have the following prerequisites:
+
+- **Administrative Access:** You need root or `sudo` privileges on the Zeek sensor to modify configuration files (`local.zeek`) and restart the Zeek service using `zeekctl`.
+- **JSON Support:** Your Zeek installation must include the `policy/tuning/json-logs.zeek` script. This script is part of the standard Zeek distribution.
+- **Disk Space:** JSON logs are typically 2 to 3 times larger than the standard tab-separated logs. Ensure you have sufficient free disk space on the Zeek sensor for log buffering and rotation.
+- **Elastic Agent:** An Elastic Agent must be installed on the Zeek sensor or on a log collector with access to the Zeek log files.
+
+## How do I deploy this integration?
+
+### Agent-based deployment
+
+This integration is deployed using the Elastic Agent. The agent runs on your Zeek sensor, collects the log files, and securely ships them to your Elastic deployment.
+
+### Onboard and configure
+
+Follow these steps to configure Zeek and set up the integration in Fleet.
+
+#### 1. Configure Zeek for JSON output
+
+You must enable JSON logging on your Zeek sensor for this integration to work correctly.
+
+1.  **Access the Sensor:** Log into your Zeek sensor host using SSH or a terminal.
+2.  **Locate Site Configuration:** Navigate to the site-specific configuration directory. The path is typically `/usr/local/zeek/share/zeek/site/` or `/opt/zeek/share/zeek/site/`.
+3.  **Edit `local.zeek`:** Open the `local.zeek` file in a text editor.
+    ```bash
+    sudo nano /opt/zeek/share/zeek/site/local.zeek
+    ```
+4.  **Enable JSON Policy:** Add the following line to the end of the file. This instructs Zeek to write all logs in JSON format.
+    ```zeek
+    @load policy/tuning/json-logs
+    ```
+5.  **Verify Configuration:** Run `zeekctl check` to validate the syntax of your configuration files.
+    ```bash
+    sudo zeekctl check
+    ```
+6.  **Deploy Changes:** Apply the new configuration and restart the Zeek processes.
+    ```bash
+    sudo zeekctl deploy
+    ```
+7.  **Confirm Output Format:** Verify that log files in `/opt/zeek/logs/current/` are now being written in JSON format.
+    ```bash
+    # This should output a JSON object
+    head -n 1 /opt/zeek/logs/current/conn.log
+    ```
+
+#### 2. Configure the integration in Fleet
+
+1.  **Navigate to Integrations:** In Kibana, go to **Management** > **Integrations**.
+2.  **Add Zeek Integration:** Search for "Zeek" and click on it to open the integration page. Click **Add Zeek**.
+3.  **Configure Integration Settings:**
+    - **Integration name:** Provide a descriptive name for your Zeek integration instance.
+    - **Paths:** Enter the absolute path pattern for your Zeek log files. The default for many installations is `/opt/zeek/logs/current/*.log`.
+    - **Tags:** (Optional) Add custom tags (e.g., `zeek-sensor-prod-dc1`) to help you filter and identify data from different sensors.
+4.  **Save and Deploy:** Click **Save and continue**. This will add the new integration policy to any agents you have enrolled in Fleet. The Elastic Agent will automatically receive the updated configuration and begin shipping Zeek logs to Elasticsearch.
+
+### Validation
+
+After configuring the integration, you can validate that data is flowing into your Elastic cluster.
+
+1.  **Generate Network Activity:** On a machine monitored by your Zeek sensor, generate some sample traffic to ensure logs are being created.
+    ```bash
+    # Generate some DNS and HTTP traffic
+    curl https://www.elastic.co
+    nslookup elastic.co
+    ```
+    On the Zeek sensor, verify that log files are being updated: `ls -lht /opt/zeek/logs/current/`.
+
+2.  **Verify in Kibana Discover:**
+    - In Kibana, navigate to the **Discover** app.
+    - Select the `logs-zeek.*` data view.
+    - Enter the following KQL query to filter for Zeek connection logs: `data_stream.dataset : "zeek.connection"`
+    - You should see documents with fields like `source.ip`, `destination.port`, `zeek.connection.state`, and `network.bytes`.
+
+3.  **Check Dashboards:**
+    - Navigate to **Analytics** > **Dashboard**.
+    - Search for and open the **[Logs Zeek] Overview** dashboard.
+    - Confirm that visualizations for "Top Talkers," "Connection Count," and "Network Protocols" are populating with data.
+
+## Troubleshooting
+
+Here are some common issues and solutions.
+
+**Common Configuration Issues**
+
+- **Logs are still in TSV format:** The integration requires JSON log output. Ensure you executed `sudo zeekctl deploy` after adding `@load policy/tuning/json-logs` to `local.zeek`. Also, check `local.zeek` for any manual overrides like `redef LogAscii::use_json = F;` that might disable JSON output.
+- **Permission Denied:** The Elastic Agent user (often `elastic-agent` or `root`) must have read permissions for the Zeek log directory and files. If the agent is running as a non-root user, you may need to adjust permissions. You can use Access Control Lists (ACLs) for this:
+  ```bash
+  sudo setfacl -R -m u:elastic-agent:rx /opt/zeek/logs/
+  ```
+- **Missing Log Files:** Zeek only creates specific log files (like `dns.log` or `http.log`) when it observes that type of traffic. If a log file is missing, generate the relevant network activity to trigger its creation.
+
+**Ingestion Errors**
+
+- **JSON Parsing Errors:** If you see `json.keys_under_root` errors or fields are not mapping correctly, check the `error.message` field in Kibana Discover. This can happen if custom Zeek scripts produce non-standard JSON that conflicts with the integration's schema.
+- **Timestamp Mismatch:** If logs appear with incorrect timestamps, verify that the system clock and timezone are set correctly on the Zeek sensor host where the Elastic Agent is running.
+
+**Vendor Resources**
+
+- [Official Zeek Documentation Home](https://docs.zeek.org/en/master/index.html)
+- [Zeek Quick Start Guide](https://docs.zeek.org/en/lts/quickstart.html)
+- [Zeek JSON Logging Reference](https://docs.zeek.org/en/master/scripts/policy/tuning/json-logs.zeek.html)
+- [Zeek Logging Framework Overview](https://docs.zeek.org/en/master/frameworks/logging.html)
+- [Zeek Log Formats](https://docs.zeek.org/en/master/log-formats.html)
+- [Zeek Control (zeekctl) Documentation](https://deepwiki.com/zeek/zeekctl/1-overview)
+
+## Performance and scaling
+
+The Zeek integration is designed to be efficient, but performance can be tuned for high-volume environments.
+
+- **Fault Tolerance:** This integration uses a `logfile` input, which tracks the last read position for each log file in a registry. This ensures that the Elastic Agent can resume collecting logs from where it left off after a restart, preventing data loss.
+- **Scaling Guidance:**
+  - **Efficiently Monitor Files:** Use glob patterns (e.g., `/opt/zeek/logs/current/*.log`) to monitor all log files with a single input configuration.
+  - **Control Resource Usage:** In environments with a very large number of log files, you can adjust the `harvester_limit` setting in the agent policy to control the number of concurrent file handles.
+  - **Manage Log Rotation:** Use the `close_inactive` setting to configure how long the agent should keep a file handle open for an inactive (rotated) log file. This helps release system resources promptly.
+  - **High-Volume Sensors:** For Zeek sensors that generate a very high volume of logs, ensure the host has sufficient I/O capacity, CPU, and memory for both Zeek and the Elastic Agent to run without contention.
+
+## Reference
+
+### Inputs used
+
+This integration uses the `logfile` input (also known as `filestream`) to collect data from Zeek's log files.
+
+### API usage (if applicable)
+
+This integration does not use any external APIs for data collection.
+
+### Data Stream Details
+
+#### capture_loss
+The `capture_loss` dataset collects the Zeek capture_loss.log file, which contains packet loss rate data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -83,11 +265,8 @@ which contains packet loss rate data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### connection
-
-The `connection` dataset collects the Zeek conn.log file, which
-contains TCP/UDP/ICMP connection data.
-
+#### connection
+The `connection` dataset collects the Zeek conn.log file, which contains TCP/UDP/ICMP connection data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -196,11 +375,8 @@ contains TCP/UDP/ICMP connection data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### dce_rpc
-
-The `dce_rpc` dataset collects the Zeek dce_rpc.log file, which
-contains Distributed Computing Environment/RPC data.
-
+#### dce_rpc
+The `dce_rpc` dataset collects the Zeek dce_rpc.log file, which contains Distributed Computing Environment/RPC data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -296,11 +472,8 @@ contains Distributed Computing Environment/RPC data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### dhcp
-
-The `dhcp` dataset collects the Zeek dhcp.log file, which contains
-DHCP lease data.
-
+#### dhcp
+The `dhcp` dataset collects the Zeek dhcp.log file, which contains DHCP lease data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -389,11 +562,8 @@ DHCP lease data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### dnp3
-
-The `dnp3` dataset collects the Zeek dnp3.log file which contains DNP3
-requests and replies.
-
+#### dnp3
+The `dnp3` dataset collects the Zeek dnp3.log file which contains DNP3 requests and replies.
 **Exported fields**
 
 | Field | Description | Type |
@@ -488,11 +658,8 @@ requests and replies.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### dns
-
-The `dns` dataset collects the Zeek dns.log file which contains DNS
-activity.
-
+#### dns
+The `dns` dataset collects the Zeek dns.log file which contains DNS activity.
 **Exported fields**
 
 | Field | Description | Type |
@@ -621,11 +788,8 @@ activity.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### dpd
-
-The `dpd` dataset collects the Zeek dpd.log, which contains dynamic
-protocol detection failures.
-
+#### dpd
+The `dpd` dataset collects the Zeek dpd.log, which contains dynamic protocol detection failures.
 **Exported fields**
 
 | Field | Description | Type |
@@ -716,11 +880,8 @@ protocol detection failures.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### files
-
-The `files` dataset collects the Zeek files.log file, which contains
-file analysis results.
-
+#### files
+The `files` dataset collects the Zeek files.log file, which contains file analysis results.
 **Exported fields**
 
 | Field | Description | Type |
@@ -812,11 +973,8 @@ file analysis results.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### ftp
-
-The `ftp` dataset collects the Zeek ftp.log file, which contains FTP
-activity.
-
+#### ftp
+The `ftp` dataset collects the Zeek ftp.log file, which contains FTP activity.
 **Exported fields**
 
 | Field | Description | Type |
@@ -932,11 +1090,8 @@ activity.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### http
-
-The `http` dataset collects the Zeek http.log file, which contains
-HTTP requests and replies.
-
+#### http
+The `http` dataset collects the Zeek http.log file, which contains HTTP requests and replies.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1076,11 +1231,8 @@ HTTP requests and replies.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### intel
-
-The `intel` dataset collects the Zeek intel.log file, which contains
-intelligence data matches.
-
+#### intel
+The `intel` dataset collects the Zeek intel.log file, which contains intelligence data matches.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1212,11 +1364,8 @@ intelligence data matches.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### irc
-
-The `irc` dataset collects the Zeek irc.log file, which contains IRC
-commands and responses.
-
+#### irc
+The `irc` dataset collects the Zeek irc.log file, which contains IRC commands and responses.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1321,11 +1470,8 @@ commands and responses.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### kerberos
-
-The `kerberos` dataset collects the Zeek kerberos.log file, which
-contains kerberos data.
-
+#### kerberos
+The `kerberos` dataset collects the Zeek kerberos.log file, which contains Kerberos data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1454,10 +1600,8 @@ contains kerberos data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### known_certs
-
-The `known_certs` dataset captures information about SSL/TLS certificates seen on the local network. See the [documentation](https://docs.zeek.org/en/master/logs/known-and-software.html#known-certs-log) for more details.
-
+#### known_certs
+The `known_certs` dataset captures information about SSL/TLS certificates seen on the local network.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1538,10 +1682,8 @@ The `known_certs` dataset captures information about SSL/TLS certificates seen o
 | tls.server.x509.subject.distinguished_name | Distinguished name (DN) of the certificate subject entity. | keyword |
 
 
-### known_hosts
-
-The `known_hosts` dataset simply records a timestamp and an IP address when Zeek observes a new system on the local network.. See the [documentation](https://docs.zeek.org/en/master/logs/known-and-software.html#known-hosts-log) for more details.
-
+#### known_hosts
+The `known_hosts` dataset records a timestamp and an IP address when Zeek observes a new system on the local network.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1605,10 +1747,8 @@ The `known_hosts` dataset simply records a timestamp and an IP address when Zeek
 | tags | List of keywords used to tag each event. | keyword |
 
 
-### known_services
-
-The `known_services` dataset records a timestamp, IP, port number, protocol, and service (if available) when Zeek observes a system offering a new service on the local network. See the [documentation](https://docs.zeek.org/en/master/logs/known-and-software.html#known-services-log) for more details.
-
+#### known_services
+The `known_services` dataset records a timestamp, IP, port number, protocol, and service when Zeek observes a system offering a new service.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1684,11 +1824,8 @@ The `known_services` dataset records a timestamp, IP, port number, protocol, and
 | tags | List of keywords used to tag each event. | keyword |
 
 
-### modbus
-
-The `modbus` dataset collects the Zeek modbus.log file, which contains
-modbus commands and responses.
-
+#### modbus
+The `modbus` dataset collects the Zeek modbus.log file, which contains Modbus commands and responses.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1782,11 +1919,8 @@ modbus commands and responses.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### mysql
-
-The `mysql` dataset collects the Zeek mysql.log file, which contains
-MySQL data.
-
+#### mysql
+The `mysql` dataset collects the Zeek mysql.log file, which contains MySQL data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -1882,11 +2016,8 @@ MySQL data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### notice
-
-The `notice` dataset collects the Zeek notice.log file, which contains
-Zeek notices.
-
+#### notice
+The `notice` dataset collects the Zeek notice.log file, which contains Zeek notices.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2002,11 +2133,112 @@ Zeek notices.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### ntp
+#### ntlm
+The `ntlm` dataset collects the Zeek ntlm.log file, which contains NT LAN Manager (NTLM) data.
+**Exported fields**
 
-The `ntp` dataset collects the Zeek ntp.log file, which contains
-NTP data.
+| Field | Description | Type |
+|---|---|---|
+| @timestamp | Date/time when the event originated. This is the date/time extracted from the event, typically representing when the event was generated by the source. If the event source has no original timestamp, this value is typically populated by the first time the event was received by the pipeline. Required field for all events. | date |
+| cloud.account.id | The cloud account or organization id used to identify different entities in a multi-tenant environment. Examples: AWS account id, Google Cloud ORG Id, or other unique identifier. | keyword |
+| cloud.availability_zone | Availability zone in which this host, resource, or service is located. | keyword |
+| cloud.image.id | Image ID for the cloud instance. | keyword |
+| cloud.instance.id | Instance ID of the host machine. | keyword |
+| cloud.instance.name | Instance name of the host machine. | keyword |
+| cloud.machine.type | Machine type of the host machine. | keyword |
+| cloud.project.id | The cloud project identifier. Examples: Google Cloud Project id, Azure Project id. | keyword |
+| cloud.provider | Name of the cloud provider. Example values are aws, azure, gcp, or digitalocean. | keyword |
+| cloud.region | Region in which this host, resource, or service is located. | keyword |
+| container.id | Unique container id. | keyword |
+| container.image.name | Name of the image the container was built on. | keyword |
+| container.labels | Image labels. | object |
+| container.name | Container name. | keyword |
+| data_stream.dataset | The field can contain anything that makes sense to signify the source of the data. Examples include `nginx.access`, `prometheus`, `endpoint` etc. For data streams that otherwise fit, but that do not have dataset set we use the value "generic" for the dataset value. `event.dataset` should have the same value as `data_stream.dataset`. Beyond the Elasticsearch data stream naming criteria noted above, the `dataset` value has additional restrictions:   \* Must not contain `-`   \* No longer than 100 characters | constant_keyword |
+| data_stream.namespace | A user defined namespace. Namespaces are useful to allow grouping of data. Many users already organize their indices this way, and the data stream naming scheme now provides this best practice as a default. Many users will populate this field with `default`. If no value is used, it falls back to `default`. Beyond the Elasticsearch index naming criteria noted above, `namespace` value has the additional restrictions:   \* Must not contain `-`   \* No longer than 100 characters | constant_keyword |
+| data_stream.type | An overarching type for the data stream. Currently allowed values are "logs" and "metrics". We expect to also add "traces" and "synthetics" in the near future. | constant_keyword |
+| destination.address | Some event destination addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
+| destination.as.number | Unique number allocated to the autonomous system. The autonomous system number (ASN) uniquely identifies each network on the Internet. | long |
+| destination.as.organization.name | Organization name. | keyword |
+| destination.as.organization.name.text | Multi-field of `destination.as.organization.name`. | match_only_text |
+| destination.geo.city_name | City name. | keyword |
+| destination.geo.continent_name | Name of the continent. | keyword |
+| destination.geo.country_iso_code | Country ISO code. | keyword |
+| destination.geo.country_name | Country name. | keyword |
+| destination.geo.location | Longitude and latitude. | geo_point |
+| destination.geo.name | User-defined description of a location, at the level of granularity they care about. Could be the name of their data centers, the floor number, if this describes a local physical entity, city names. Not typically used in automated geolocation. | keyword |
+| destination.geo.region_iso_code | Region ISO code. | keyword |
+| destination.geo.region_name | Region name. | keyword |
+| destination.ip | IP address of the destination (IPv4 or IPv6). | ip |
+| destination.port | Port of the destination. | long |
+| ecs.version | ECS version this event conforms to. `ecs.version` is a required field and must exist in all events. When querying across multiple indices -- which may conform to slightly different ECS versions -- this field lets integrations adjust to the schema version of the events. | keyword |
+| error.message | Error message. | match_only_text |
+| event.category | This is one of four ECS Categorization Fields, and indicates the second level in the ECS category hierarchy. `event.category` represents the "big buckets" of ECS categories. For example, filtering on `event.category:process` yields all events relating to process activity. This field is closely related to `event.type`, which is used as a subcategory. This field is an array. This will allow proper categorization of some events that fall in multiple categories. | keyword |
+| event.created | `event.created` contains the date/time when the event was first read by an agent, or by your pipeline. This field is distinct from `@timestamp` in that `@timestamp` typically contain the time extracted from the original event. In most situations, these two timestamps will be slightly different. The difference can be used to calculate the delay between your source generating an event, and the time when your agent first processed it. This can be used to monitor your agent's or pipeline's ability to keep up with your event source. In case the two timestamps are identical, `@timestamp` should be used. | date |
+| event.dataset | Event dataset | constant_keyword |
+| event.id | Unique ID to describe the event. | keyword |
+| event.ingested | Timestamp when an event arrived in the central data store. This is different from `@timestamp`, which is when the event originally occurred.  It's also different from `event.created`, which is meant to capture the first time an agent saw the event. In normal conditions, assuming no tampering, the timestamps should chronologically look like this: `@timestamp` \< `event.created` \< `event.ingested`. | date |
+| event.kind | This is one of four ECS Categorization Fields, and indicates the highest level in the ECS category hierarchy. `event.kind` gives high-level information about what type of information the event contains, without being specific to the contents of the event. For example, values of this field distinguish alert events from metric events. The value of this field can be used to inform how these kinds of events should be handled. They may warrant different retention, different access control, it may also help understand whether the data is coming in at a regular interval or not. | keyword |
+| event.module | Event module | constant_keyword |
+| event.outcome | This is one of four ECS Categorization Fields, and indicates the lowest level in the ECS category hierarchy. `event.outcome` simply denotes whether the event represents a success or a failure from the perspective of the entity that produced the event. Note that when a single transaction is described in multiple events, each event may populate different values of `event.outcome`, according to their perspective. Also note that in the case of a compound event (a single event that contains multiple logical events), this field should be populated with the value that best captures the overall success or failure from the perspective of the event producer. Further note that not all events will have an associated outcome. For example, this field is generally not populated for metric events, events with `event.type:info`, or any events for which an outcome does not make logical sense. | keyword |
+| event.type | This is one of four ECS Categorization Fields, and indicates the third level in the ECS category hierarchy. `event.type` represents a categorization "sub-bucket" that, when used along with the `event.category` field values, enables filtering events down to a level appropriate for single visualization. This field is an array. This will allow proper categorization of some events that fall in multiple event types. | keyword |
+| file.path | Full path to the file, including the file name. It should include the drive letter, when appropriate. | keyword |
+| file.path.text | Multi-field of `file.path`. | match_only_text |
+| host.architecture | Operating system architecture. | keyword |
+| host.containerized | If the host is a container. | boolean |
+| host.domain | Name of the domain of which the host is a member. For example, on Windows this could be the host's Active Directory domain or NetBIOS domain name. For Linux this could be the domain of the host's LDAP provider. | keyword |
+| host.hostname | Hostname of the host. It normally contains what the `hostname` command returns on the host machine. | keyword |
+| host.id | Unique host id. As hostname is not always unique, use values that are meaningful in your environment. Example: The current usage of `beat.name`. | keyword |
+| host.ip | Host ip addresses. | ip |
+| host.mac | Host MAC addresses. The notation format from RFC 7042 is suggested: Each octet (that is, 8-bit byte) is represented by two [uppercase] hexadecimal digits giving the value of the octet as an unsigned integer. Successive octets are separated by a hyphen. | keyword |
+| host.name | Name of the host. It can contain what hostname returns on Unix systems, the fully qualified domain name (FQDN), or a name specified by the user. The recommended value is the lowercase FQDN of the host. | keyword |
+| host.os.build | OS build information. | keyword |
+| host.os.codename | OS codename, if any. | keyword |
+| host.os.family | OS family (such as redhat, debian, freebsd, windows). | keyword |
+| host.os.kernel | Operating system kernel version as a raw string. | keyword |
+| host.os.name | Operating system name, without the version. | keyword |
+| host.os.name.text | Multi-field of `host.os.name`. | match_only_text |
+| host.os.platform | Operating system platform (such centos, ubuntu, windows). | keyword |
+| host.os.version | Operating system version as a raw string. | keyword |
+| host.type | Type of host. For Cloud providers this can be the machine type like `t2.medium`. If vm, this could be the container, for example, or other information meaningful in your environment. | keyword |
+| input.type | Type of Filebeat input. | keyword |
+| log.file.path | Full path to the log file this event came from, including the file name. It should include the drive letter, when appropriate. If the event wasn't read from a log file, do not populate this field. | keyword |
+| log.flags | Flags for the log file. | keyword |
+| log.offset | Offset of the entry in the log file. | long |
+| network.community_id | A hash of source and destination IPs and ports, as well as the protocol used in a communication. This is a tool-agnostic standard to identify flows. Learn more at https://github.com/corelight/community-id-spec. | keyword |
+| network.protocol | In the OSI Model this would be the Application Layer protocol. For example, `http`, `dns`, or `ssh`. The field value must be normalized to lowercase for querying. | keyword |
+| network.transport | Same as network.iana_number, but instead using the Keyword name of the transport layer (udp, tcp, ipv6-icmp, etc.) The field value must be normalized to lowercase for querying. | keyword |
+| related.ip | All of the IPs seen on your event. | ip |
+| related.user | All the user names or other user identifiers seen on the event. | keyword |
+| source.address | Some event source addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
+| source.as.number | Unique number allocated to the autonomous system. The autonomous system number (ASN) uniquely identifies each network on the Internet. | long |
+| source.as.organization.name | Organization name. | keyword |
+| source.as.organization.name.text | Multi-field of `source.as.organization.name`. | match_only_text |
+| source.geo.city_name | City name. | keyword |
+| source.geo.continent_name | Name of the continent. | keyword |
+| source.geo.country_iso_code | Country ISO code. | keyword |
+| source.geo.country_name | Country name. | keyword |
+| source.geo.location | Longitude and latitude. | geo_point |
+| source.geo.name | User-defined description of a location, at the level of granularity they care about. Could be the name of their data centers, the floor number, if this describes a local physical entity, city names. Not typically used in automated geolocation. | keyword |
+| source.geo.region_iso_code | Region ISO code. | keyword |
+| source.geo.region_name | Region name. | keyword |
+| source.ip | IP address of the source (IPv4 or IPv6). | ip |
+| source.port | Port of the source. | long |
+| tags | List of keywords used to tag each event. | keyword |
+| user.domain | Name of the directory the user is a member of. For example, an LDAP or Active Directory domain name. | keyword |
+| user.name | Short name or login of the user. | keyword |
+| user.name.text | Multi-field of `user.name`. | match_only_text |
+| zeek.ntlm.domain | Domain name given by the client. | keyword |
+| zeek.ntlm.hostname | Hostname given by the client. | keyword |
+| zeek.ntlm.server.name.dns | DNS name given by the server in a CHALLENGE. | keyword |
+| zeek.ntlm.server.name.netbios | NetBIOS name given by the server in a CHALLENGE. | keyword |
+| zeek.ntlm.server.name.tree | Tree name given by the server in a CHALLENGE. | keyword |
+| zeek.ntlm.success | Indicate whether or not the authentication was successful. | boolean |
+| zeek.ntlm.username | Username given by the client. | keyword |
+| zeek.session_id | A unique identifier of the session | keyword |
 
+
+#### ntp
+The `ntp` dataset collects the Zeek ntp.log file, which contains NTP data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2119,118 +2351,8 @@ NTP data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### ntlm
-
-The `ntlm` dataset collects the Zeek ntlm.log file, which contains NT
-LAN Manager(NTLM) data.
-
-**Exported fields**
-
-| Field | Description | Type |
-|---|---|---|
-| @timestamp | Date/time when the event originated. This is the date/time extracted from the event, typically representing when the event was generated by the source. If the event source has no original timestamp, this value is typically populated by the first time the event was received by the pipeline. Required field for all events. | date |
-| cloud.account.id | The cloud account or organization id used to identify different entities in a multi-tenant environment. Examples: AWS account id, Google Cloud ORG Id, or other unique identifier. | keyword |
-| cloud.availability_zone | Availability zone in which this host, resource, or service is located. | keyword |
-| cloud.image.id | Image ID for the cloud instance. | keyword |
-| cloud.instance.id | Instance ID of the host machine. | keyword |
-| cloud.instance.name | Instance name of the host machine. | keyword |
-| cloud.machine.type | Machine type of the host machine. | keyword |
-| cloud.project.id | The cloud project identifier. Examples: Google Cloud Project id, Azure Project id. | keyword |
-| cloud.provider | Name of the cloud provider. Example values are aws, azure, gcp, or digitalocean. | keyword |
-| cloud.region | Region in which this host, resource, or service is located. | keyword |
-| container.id | Unique container id. | keyword |
-| container.image.name | Name of the image the container was built on. | keyword |
-| container.labels | Image labels. | object |
-| container.name | Container name. | keyword |
-| data_stream.dataset | The field can contain anything that makes sense to signify the source of the data. Examples include `nginx.access`, `prometheus`, `endpoint` etc. For data streams that otherwise fit, but that do not have dataset set we use the value "generic" for the dataset value. `event.dataset` should have the same value as `data_stream.dataset`. Beyond the Elasticsearch data stream naming criteria noted above, the `dataset` value has additional restrictions:   \* Must not contain `-`   \* No longer than 100 characters | constant_keyword |
-| data_stream.namespace | A user defined namespace. Namespaces are useful to allow grouping of data. Many users already organize their indices this way, and the data stream naming scheme now provides this best practice as a default. Many users will populate this field with `default`. If no value is used, it falls back to `default`. Beyond the Elasticsearch index naming criteria noted above, `namespace` value has the additional restrictions:   \* Must not contain `-`   \* No longer than 100 characters | constant_keyword |
-| data_stream.type | An overarching type for the data stream. Currently allowed values are "logs" and "metrics". We expect to also add "traces" and "synthetics" in the near future. | constant_keyword |
-| destination.address | Some event destination addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
-| destination.as.number | Unique number allocated to the autonomous system. The autonomous system number (ASN) uniquely identifies each network on the Internet. | long |
-| destination.as.organization.name | Organization name. | keyword |
-| destination.as.organization.name.text | Multi-field of `destination.as.organization.name`. | match_only_text |
-| destination.geo.city_name | City name. | keyword |
-| destination.geo.continent_name | Name of the continent. | keyword |
-| destination.geo.country_iso_code | Country ISO code. | keyword |
-| destination.geo.country_name | Country name. | keyword |
-| destination.geo.location | Longitude and latitude. | geo_point |
-| destination.geo.name | User-defined description of a location, at the level of granularity they care about. Could be the name of their data centers, the floor number, if this describes a local physical entity, city names. Not typically used in automated geolocation. | keyword |
-| destination.geo.region_iso_code | Region ISO code. | keyword |
-| destination.geo.region_name | Region name. | keyword |
-| destination.ip | IP address of the destination (IPv4 or IPv6). | ip |
-| destination.port | Port of the destination. | long |
-| ecs.version | ECS version this event conforms to. `ecs.version` is a required field and must exist in all events. When querying across multiple indices -- which may conform to slightly different ECS versions -- this field lets integrations adjust to the schema version of the events. | keyword |
-| error.message | Error message. | match_only_text |
-| event.category | This is one of four ECS Categorization Fields, and indicates the second level in the ECS category hierarchy. `event.category` represents the "big buckets" of ECS categories. For example, filtering on `event.category:process` yields all events relating to process activity. This field is closely related to `event.type`, which is used as a subcategory. This field is an array. This will allow proper categorization of some events that fall in multiple categories. | keyword |
-| event.created | `event.created` contains the date/time when the event was first read by an agent, or by your pipeline. This field is distinct from `@timestamp` in that `@timestamp` typically contain the time extracted from the original event. In most situations, these two timestamps will be slightly different. The difference can be used to calculate the delay between your source generating an event, and the time when your agent first processed it. This can be used to monitor your agent's or pipeline's ability to keep up with your event source. In case the two timestamps are identical, `@timestamp` should be used. | date |
-| event.dataset | Event dataset | constant_keyword |
-| event.id | Unique ID to describe the event. | keyword |
-| event.ingested | Timestamp when an event arrived in the central data store. This is different from `@timestamp`, which is when the event originally occurred.  It's also different from `event.created`, which is meant to capture the first time an agent saw the event. In normal conditions, assuming no tampering, the timestamps should chronologically look like this: `@timestamp` \< `event.created` \< `event.ingested`. | date |
-| event.kind | This is one of four ECS Categorization Fields, and indicates the highest level in the ECS category hierarchy. `event.kind` gives high-level information about what type of information the event contains, without being specific to the contents of the event. For example, values of this field distinguish alert events from metric events. The value of this field can be used to inform how these kinds of events should be handled. They may warrant different retention, different access control, it may also help understand whether the data is coming in at a regular interval or not. | keyword |
-| event.module | Event module | constant_keyword |
-| event.outcome | This is one of four ECS Categorization Fields, and indicates the lowest level in the ECS category hierarchy. `event.outcome` simply denotes whether the event represents a success or a failure from the perspective of the entity that produced the event. Note that when a single transaction is described in multiple events, each event may populate different values of `event.outcome`, according to their perspective. Also note that in the case of a compound event (a single event that contains multiple logical events), this field should be populated with the value that best captures the overall success or failure from the perspective of the event producer. Further note that not all events will have an associated outcome. For example, this field is generally not populated for metric events, events with `event.type:info`, or any events for which an outcome does not make logical sense. | keyword |
-| event.type | This is one of four ECS Categorization Fields, and indicates the third level in the ECS category hierarchy. `event.type` represents a categorization "sub-bucket" that, when used along with the `event.category` field values, enables filtering events down to a level appropriate for single visualization. This field is an array. This will allow proper categorization of some events that fall in multiple event types. | keyword |
-| file.path | Full path to the file, including the file name. It should include the drive letter, when appropriate. | keyword |
-| file.path.text | Multi-field of `file.path`. | match_only_text |
-| host.architecture | Operating system architecture. | keyword |
-| host.containerized | If the host is a container. | boolean |
-| host.domain | Name of the domain of which the host is a member. For example, on Windows this could be the host's Active Directory domain or NetBIOS domain name. For Linux this could be the domain of the host's LDAP provider. | keyword |
-| host.hostname | Hostname of the host. It normally contains what the `hostname` command returns on the host machine. | keyword |
-| host.id | Unique host id. As hostname is not always unique, use values that are meaningful in your environment. Example: The current usage of `beat.name`. | keyword |
-| host.ip | Host ip addresses. | ip |
-| host.mac | Host MAC addresses. The notation format from RFC 7042 is suggested: Each octet (that is, 8-bit byte) is represented by two [uppercase] hexadecimal digits giving the value of the octet as an unsigned integer. Successive octets are separated by a hyphen. | keyword |
-| host.name | Name of the host. It can contain what hostname returns on Unix systems, the fully qualified domain name (FQDN), or a name specified by the user. The recommended value is the lowercase FQDN of the host. | keyword |
-| host.os.build | OS build information. | keyword |
-| host.os.codename | OS codename, if any. | keyword |
-| host.os.family | OS family (such as redhat, debian, freebsd, windows). | keyword |
-| host.os.kernel | Operating system kernel version as a raw string. | keyword |
-| host.os.name | Operating system name, without the version. | keyword |
-| host.os.name.text | Multi-field of `host.os.name`. | match_only_text |
-| host.os.platform | Operating system platform (such centos, ubuntu, windows). | keyword |
-| host.os.version | Operating system version as a raw string. | keyword |
-| host.type | Type of host. For Cloud providers this can be the machine type like `t2.medium`. If vm, this could be the container, for example, or other information meaningful in your environment. | keyword |
-| input.type | Type of Filebeat input. | keyword |
-| log.file.path | Full path to the log file this event came from, including the file name. It should include the drive letter, when appropriate. If the event wasn't read from a log file, do not populate this field. | keyword |
-| log.flags | Flags for the log file. | keyword |
-| log.offset | Offset of the entry in the log file. | long |
-| network.community_id | A hash of source and destination IPs and ports, as well as the protocol used in a communication. This is a tool-agnostic standard to identify flows. Learn more at https://github.com/corelight/community-id-spec. | keyword |
-| network.protocol | In the OSI Model this would be the Application Layer protocol. For example, `http`, `dns`, or `ssh`. The field value must be normalized to lowercase for querying. | keyword |
-| network.transport | Same as network.iana_number, but instead using the Keyword name of the transport layer (udp, tcp, ipv6-icmp, etc.) The field value must be normalized to lowercase for querying. | keyword |
-| related.ip | All of the IPs seen on your event. | ip |
-| related.user | All the user names or other user identifiers seen on the event. | keyword |
-| source.address | Some event source addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
-| source.as.number | Unique number allocated to the autonomous system. The autonomous system number (ASN) uniquely identifies each network on the Internet. | long |
-| source.as.organization.name | Organization name. | keyword |
-| source.as.organization.name.text | Multi-field of `source.as.organization.name`. | match_only_text |
-| source.geo.city_name | City name. | keyword |
-| source.geo.continent_name | Name of the continent. | keyword |
-| source.geo.country_iso_code | Country ISO code. | keyword |
-| source.geo.country_name | Country name. | keyword |
-| source.geo.location | Longitude and latitude. | geo_point |
-| source.geo.name | User-defined description of a location, at the level of granularity they care about. Could be the name of their data centers, the floor number, if this describes a local physical entity, city names. Not typically used in automated geolocation. | keyword |
-| source.geo.region_iso_code | Region ISO code. | keyword |
-| source.geo.region_name | Region name. | keyword |
-| source.ip | IP address of the source (IPv4 or IPv6). | ip |
-| source.port | Port of the source. | long |
-| tags | List of keywords used to tag each event. | keyword |
-| user.domain | Name of the directory the user is a member of. For example, an LDAP or Active Directory domain name. | keyword |
-| user.name | Short name or login of the user. | keyword |
-| user.name.text | Multi-field of `user.name`. | match_only_text |
-| zeek.ntlm.domain | Domain name given by the client. | keyword |
-| zeek.ntlm.hostname | Hostname given by the client. | keyword |
-| zeek.ntlm.server.name.dns | DNS name given by the server in a CHALLENGE. | keyword |
-| zeek.ntlm.server.name.netbios | NetBIOS name given by the server in a CHALLENGE. | keyword |
-| zeek.ntlm.server.name.tree | Tree name given by the server in a CHALLENGE. | keyword |
-| zeek.ntlm.success | Indicate whether or not the authentication was successful. | boolean |
-| zeek.ntlm.username | Username given by the client. | keyword |
-| zeek.session_id | A unique identifier of the session | keyword |
-
-
-### ocsp
-
-The `ocsp` dataset collects the Zeek ocsp.log file, which contains
-Online Certificate Status Protocol (OCSP) data.
-
+#### ocsp
+The `ocsp` dataset collects the Zeek ocsp.log file, which contains Online Certificate Status Protocol (OCSP) data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2298,11 +2420,8 @@ Online Certificate Status Protocol (OCSP) data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### pe
-
-The `pe` dataset collects the Zeek pe.log file, which contains
-portable executable data.
-
+#### pe
+The `pe` dataset collects the Zeek pe.log file, which contains portable executable data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2375,11 +2494,8 @@ portable executable data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### radius
-
-The `radius` dataset collects the Zeek radius.log file, which contains
-RADIUS authentication attempts.
-
+#### radius
+The `radius` dataset collects the Zeek radius.log file, which contains RADIUS authentication attempts.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2481,11 +2597,8 @@ RADIUS authentication attempts.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### rdp
-
-The `rdp` dataset collects the Zeek rdp.log file, which contains RDP
-data.
-
+#### rdp
+The `rdp` dataset collects the Zeek rdp.log file, which contains RDP data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2592,11 +2705,8 @@ data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### rfb
-
-The `rfb` dataset collects the Zeek rfb.log file, which contains
-Remote Framebuffer (RFB) data.
-
+#### rfb
+The `rfb` dataset collects the Zeek rfb.log file, which contains Remote Framebuffer (RFB) data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2695,11 +2805,8 @@ Remote Framebuffer (RFB) data.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### signature
-
-The `signature` dataset collects the Zeek signature.log file, which contains
-Zeek signature matches.
-
+#### signature
+The `signature` dataset collects the Zeek signature.log file, which contains Zeek signature matches.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2807,11 +2914,8 @@ Zeek signature matches.
 | zeek.signature.sub_msg | Extracted payload data or extra message. | keyword |
 
 
-### sip
-
-The `sip` dataset collects the Zeek sip.log file, which contains SIP
-data.
-
+#### sip
+The `sip` dataset collects the Zeek sip.log file, which contains SIP data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -2925,11 +3029,8 @@ data.
 | zeek.sip.warning | Contents of the Warning: header. | keyword |
 
 
-### smb_cmd
-
-The `smb_cmd` dataset collects the Zeek smb_cmd.log file, which
-contains SMB commands.
-
+#### smb_cmd
+The `smb_cmd` dataset collects the Zeek smb_cmd.log file, which contains SMB commands.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3039,11 +3140,8 @@ contains SMB commands.
 | zeek.smb_cmd.version | Version of SMB for the command. | keyword |
 
 
-### smb_files
-
-The `smb_files` dataset collects the Zeek smb_files.log file, which
-contains SMB file data.
-
+#### smb_files
+The `smb_files` dataset collects the Zeek smb_files.log file, which contains SMB file data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3153,11 +3251,8 @@ contains SMB file data.
 | zeek.smb_files.uuid | UUID referencing this file if DCE/RPC. | keyword |
 
 
-### smb_mapping
-
-The `smb_mapping` dataset collects the Zeek smb_mapping.log file,
-which contains SMB trees.
-
+#### smb_mapping
+The `smb_mapping` dataset collects the Zeek smb_mapping.log file, which contains SMB trees.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3252,11 +3347,8 @@ which contains SMB trees.
 | zeek.smb_mapping.share_type | If this is SMB2, a share type will be included. For SMB1, the type of share will be deduced and included as well. | keyword |
 
 
-### smtp
-
-The `smtp` dataset collects the Zeek smtp.log file, which contains
-SMTP transactions..
-
+#### smtp
+The `smtp` dataset collects the Zeek smtp.log file, which contains SMTP transactions.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3369,11 +3461,8 @@ SMTP transactions..
 | zeek.smtp.x_originating_ip | Contents of the X-Originating-IP header. | keyword |
 
 
-### snmp
-
-The `snmp` dataset collects the Zeek snmp.log file, which contains
-SNMP messages.
-
+#### snmp
+The `snmp` dataset collects the Zeek snmp.log file, which contains SNMP messages.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3471,11 +3560,8 @@ SNMP messages.
 | zeek.snmp.version | The version of SNMP being used. | keyword |
 
 
-### socks
-
-The `socks` dataset collects the Zeek socks.log file, which contains
-SOCKS proxy requests.
-
+#### socks
+The `socks` dataset collects the Zeek socks.log file, which contains SOCKS proxy requests.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3576,10 +3662,8 @@ SOCKS proxy requests.
 | zeek.socks.version | Protocol version of SOCKS. | integer |
 
 
-### software
-
-The `software` dataset collects details on applications operated by the hosts it sees on the local network. See the [documentation](https://docs.zeek.org/en/master/logs/known-and-software.html#software-log) for more details.
-
+#### software
+The `software` dataset collects details on applications operated by hosts on the local network.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3651,11 +3735,8 @@ The `software` dataset collects details on applications operated by the hosts it
 | zeek.software.version.minor3 | 3rd minor version of software. | long |
 
 
-### ssh
-
-The `ssh` dataset collects the Zeek ssh.log file, which contains SSH
-connection data.
-
+#### ssh
+The `ssh` dataset collects the Zeek ssh.log file, which contains SSH connection data.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3757,11 +3838,8 @@ connection data.
 | zeek.ssh.version | SSH major version (1 or 2). | integer |
 
 
-### ssl
-
-The `ssl` dataset collects the Zeek ssl.log file, which contains
-SSL/TLS handshake info.
-
+#### ssl
+The `ssl` dataset collects the Zeek ssl.log file, which contains SSL/TLS handshake info.
 **Exported fields**
 
 | Field | Description | Type |
@@ -3923,11 +4001,8 @@ SSL/TLS handshake info.
 | zeek.ssl.version | SSL/TLS version that was logged. | keyword |
 
 
-### stats
-
-The `stats` dataset collects the Zeek stats.log file, which contains
-memory/event/packet/lag statistics.
-
+#### stats
+The `stats` dataset collects the Zeek stats.log file, which contains memory, event, packet, and lag statistics.
 **Exported fields**
 
 | Field | Description | Type |
@@ -4006,11 +4081,8 @@ memory/event/packet/lag statistics.
 | zeek.stats.timestamp_lag | Lag between the wall clock and packet timestamps if reading live traffic. | integer |
 
 
-### syslog
-
-The `syslog` dataset collects the Zeek syslog.log file which contains
-syslog messages.
-
+#### syslog
+The `syslog` dataset collects the Zeek syslog.log file which contains syslog messages.
 **Exported fields**
 
 | Field | Description | Type |
@@ -4103,11 +4175,8 @@ syslog messages.
 | zeek.syslog.severity | Syslog severity for the message. | keyword |
 
 
-### traceroute
-
-The `traceroute` dataset collects the Zeek traceroute.log file, which
-contains traceroute detections.
-
+#### traceroute
+The `traceroute` dataset collects the Zeek traceroute.log file, which contains traceroute detections.
 **Exported fields**
 
 | Field | Description | Type |
@@ -4191,11 +4260,8 @@ contains traceroute detections.
 | zeek.session_id | A unique identifier of the session | keyword |
 
 
-### tunnel
-
-The `tunnel` dataset collects the Zeek tunnel.log file, which contains
-tunneling protocol events.
-
+#### tunnel
+The `tunnel` dataset collects the Zeek tunnel.log file, which contains tunneling protocol events.
 **Exported fields**
 
 | Field | Description | Type |
@@ -4284,11 +4350,8 @@ tunneling protocol events.
 | zeek.tunnel.type | The type of tunnel. | keyword |
 
 
-### weird
-
-The `weird` dataset collects the Zeek weird.log file, which contains
-unexpected network-level activity.
-
+#### weird
+The `weird` dataset collects the Zeek weird.log file, which contains unexpected network-level activity.
 **Exported fields**
 
 | Field | Description | Type |
@@ -4379,11 +4442,8 @@ unexpected network-level activity.
 | zeek.weird.peer | The peer that originated this weird. This is helpful in cluster deployments if a particular cluster node is having trouble to help identify which node is having trouble. | keyword |
 
 
-### x509
-
-The `x509` dataset collects the Zeek x509.log file, which contains
-X.509 certificate info.
-
+#### x509
+The `x509` dataset collects the Zeek x509.log file, which contains X.509 certificate info.
 **Exported fields**
 
 | Field | Description | Type |
@@ -4493,4 +4553,3 @@ X.509 certificate info.
 | zeek.x509.san.ip | List of IP entries in SAN. | ip |
 | zeek.x509.san.other_fields | True if the certificate contained other, not recognized or parsed name fields. | boolean |
 | zeek.x509.san.uri | List of URI entries in SAN. | keyword |
-

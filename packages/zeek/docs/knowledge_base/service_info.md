@@ -29,8 +29,6 @@ This integration collects structured logs from a wide variety of Zeek log files.
 
 - **Zeek Version:** This integration is compatible with **Zeek (formerly Bro)** version 3.0 and higher. Full support is provided for modern LTS releases including **Zeek 4.0, 5.0, and 6.0**.
 - **Log Format:** The Zeek instance must be configured for **JSON output** for the integration to parse fields correctly.
-- **Elastic Stack:** Requires Elastic Stack version **7.14.0** or higher to support the data stream naming conventions.
-- **Elastic Agent:** Requires Elastic Agent version **7.14.0** or higher to ensure full ECS (Elastic Common Schema) mapping.
 
 ## Scaling and Performance
 
@@ -47,15 +45,13 @@ This integration collects structured logs from a wide variety of Zeek log files.
 
 1. **Administrative Access:** Root or sudo privileges on the Zeek sensor are required to modify configuration files and restart services.
 2. **JSON Support:** The Zeek installation must include the `policy/tuning/json-logs.zeek` script, which is part of the standard distribution.
-3. **Disk Space:** JSON logs are typically **2x-3x larger** than standard TSV logs. Ensure at least 20% free disk space for log buffering and rotation.
-4. **Network Connectivity:** If forwarding logs via syslog, ensure port **514** (UDP/TCP) or your custom port (e.g., `9001`) is open in the local firewall.
+3. **Disk Space:** JSON logs are typically **2x-3x larger** than standard TSV logs. Ensure sufficient free disk space for log buffering and rotation.
 
 ## Elastic prerequisites
 
 1. **Elastic Agent Deployment:** A deployed and enrolled Elastic Agent in an active Agent Policy. Refer to the [Elastic Agent Installation Guide](/docs/reference/fleet/install-elastic-agents) for setup instructions.
 2. **Permissions:** The Elastic Agent service account must have read permissions for the Zeek log directory.
     - Example: `sudo setfacl -R -m u:elastic-agent:rx /opt/zeek/logs/`
-3. **Version Requirements:** Ensure the Elastic Stack and Agent are at version **7.14.0+** to support the Zeek integration assets.
 
 ## Vendor set up steps
 
@@ -86,12 +82,9 @@ This integration collects structured logs from a wide variety of Zeek log files.
 
 1.  **Navigate to Integrations:** In Kibana, go to **Management** > **Integrations** and search for **Zeek**.
 2.  **Add Zeek:** Click **Add Zeek**.
-3.  **Configure Input Type:** Choose the collection method used by your environment:
-    - **Log file (Default):**
+3.  **Configure Input Type:**:
+    - **Log file:**
         - **Paths:** Enter the absolute path to your Zeek logs. The default for many installations is `/opt/zeek/logs/current/*.log`.
-    - **TCP or UDP:**
-        - **Listen Host:** Set the interface the agent should listen on (e.g., `0.0.0.0` for all interfaces or `127.0.0.1` for local only).
-        - **Listen Port:** Specify the port receiving syslog traffic (e.g., `514` or `9001`).
 4.  **Configure Integration Variables:**
     - **Tags:** Add custom strings (e.g., `zeek-sensor-north-dc`) to the **Tags** field to simplify filtering in multi-sensor environments.
     - **Processors:** Use the **Processors** text area to add YAML configuration for data enrichment, such as `add_host_metadata` or `add_fields`.
@@ -104,10 +97,16 @@ This integration collects structured logs from a wide variety of Zeek log files.
 1.  **Trigger Network Activity:**
     - Generate identifiable traffic on the Zeek sensor to ensure logs are being generated:
       ```bash
-      curl /guide/index.html
+      curl https://www.elastic.co
       nslookup elastic.co
       ```
     - Verify logs are updating locally by checking the file timestamps: `ls -lh /opt/zeek/logs/current/`.
+
+2.  **Verify Using Dashboards:**
+    - Navigate to **Analytics** > **Dashboard**.
+    - Search for and open the **[Logs Zeek] Overview** dashboard.
+    - Confirm that visualizations for "Top Talkers," "Connection Count," and "Network Protocols" are displaying live data.
+
 
 2.  **Check Data in Kibana Discover:**
     - Navigate to **Analytics** > **Discover**.
@@ -116,20 +115,11 @@ This integration collects structured logs from a wide variety of Zeek log files.
       `data_stream.dataset : "zeek.connection"`
     - Click **Refresh**. Verify that fields such as `source.ip`, `destination.port`, `zeek.connection.state`, and `network.bytes` are populated with data.
 
-3.  **Verify Protocol Specifics:**
-    - Update the filter to `data_stream.dataset : "zeek.dns"`.
-    - Confirm that fields like `dns.question.name` and `dns.response_code` contain values from your recent `nslookup` test.
-
-4.  **Verify Using Dashboards:**
-    - Navigate to **Analytics** > **Dashboard**.
-    - Search for and open the **[Logs Zeek] Overview** dashboard.
-    - Confirm that visualizations for "Top Talkers," "Connection Count," and "Network Protocols" are displaying live data.
-
 # Troubleshooting
 
 ## Common Configuration Issues
 
-- **Logs are still in TSV format**: Ensure `zeekctl deploy` was executed after modifying `local.zeek`. If the issue persists, check the end of `local.zeek` for any `redef LogAscii::use_json = F;` lines that might be manually disabling JSON output.
+- **Logs are still in TSV format**: The integration requires JSON log output. Ensure `zeekctl deploy` was executed after modifying `local.zeek`. If the issue persists, check the end of `local.zeek` for any `redef LogAscii::use_json = F;` lines that might be manually disabling JSON output.
 - **Permission Denied**: The Elastic Agent user (often `elastic-agent` or `root`) must have access to the log directory. Use Access Control Lists (ACLs) for granular permissions:
   `sudo setfacl -R -m u:elastic-agent:rx /opt/zeek/logs/current/`
 - **Missing Log Files**: Zeek only creates specific log files (like `dns.log` or `http.log`) when that specific activity is detected. If a log file is missing, generate relevant traffic on the network.
@@ -143,11 +133,10 @@ This integration collects structured logs from a wide variety of Zeek log files.
 
 - [Zeek JSON Logging Reference](https://docs.zeek.org/en/master/scripts/policy/tuning/json-logs.zeek.html)
 - [Zeek Logging Framework Overview](https://docs.zeek.org/en/master/frameworks/logging.html)
-- Zeek Control (zeekctl) Documentation
+- [Zeek Log Formats](https://docs.zeek.org/en/master/log-formats.html)
+- [Zeek Control (zeekctl) Documentation](https://deepwiki.com/zeek/zeekctl/1-overview)
 
 # Documentation sites
 
 - [Official Zeek Documentation Home](https://docs.zeek.org/en/master/index.html)
 - [Zeek Quick Start Guide](https://docs.zeek.org/en/lts/quickstart.html)
-- [Zeek GitHub Repository](https://github.com/zeek/zeek)
-- [Elastic Agent Configuration Guide](/docs/reference/fleet/configure-standalone-elastic-agents)
