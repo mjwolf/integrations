@@ -1,215 +1,133 @@
 # Service Info
 
 ## Common use cases
-- Network security monitoring and threat detection
-- Firewall log analysis and compliance reporting
-- Malware detection and file transfer monitoring
-- VPN connection tracking and analysis
-- Access control rule monitoring
-- SSL/TLS inspection and policy enforcement
-- URL filtering and web application identification
-- DNS query monitoring
-- Network flow analysis and connection tracking
+
+The Cisco Firepower Threat Defense (FTD) integration allows organizations to ingest high-fidelity security and network event data into the Elastic Stack for centralized visibility and advanced analytics. By collecting logs from FTD appliances, security teams can monitor their network perimeter and internal segments with precision.
+- **Threat Detection and Incident Response:** Monitor intrusion events (IPS/IDS) and malware detections in real-time to identify and mitigate active threats across the network infrastructure.
+- **Compliance Auditing and Reporting:** Maintain a comprehensive audit trail of administrative changes, user logins, and policy modifications to satisfy regulatory requirements like PCI-DSS, HIPAA, and GDPR.
+- **Network Traffic Analysis:** Analyze connection logs to identify top talkers, unusual traffic patterns, and potential data exfiltration attempts through granular protocol and port-level visibility.
+- **Operational Troubleshooting:** Use system and diagnostic logs to identify hardware failures, interface flapping, or configuration errors that may be impacting network performance and availability.
 
 ## Data types collected
-- Security events (malware detection, file transfers, threat intelligence)
-- Access control events (rule matches, connection allows/blocks)
-- VPN events (connection establishment, termination, user authentication)
-- SSL/TLS inspection events
-- DNS query and response events
-- Network flow information (source/destination IPs, ports, protocols)
-- File transfer events (uploads, downloads, file analysis results)
-- User authentication and authorization events (AAA)
-- System events (failover, updates, configuration changes)
+
+This integration can collect the following types of data:
+- **Connection Logs:** Detailed records of network sessions including source/destination IP addresses, ports, protocols, and data volumes.
+- **Intrusion Events:** Logs from the integrated IPS engine identifying signature-based attacks and exploit attempts.
+- **Security Intelligence Logs:** Events triggered by IP, URL, or DNS blacklists and reputation feeds.
+- **System and Audit Logs:** Administrative events such as user logins, configuration deployments, and health status changes.
+- **Malware and File Events:** Information regarding file transfers and sandbox analysis results for potentially malicious attachments.
+- **Format:** Data is primarily collected via Syslog, supporting standard Cisco message formats and potentially Common Event Format (CEF).
 
 ## Compatibility
-- Compatible with Cisco Firepower Threat Defense (FTD) devices
-- Supports syslog message collection using TCP, UDP, or logfile input
-- Tested with various Cisco Firepower device models and FTD software versions
-- Requires Elastic Stack version ^8.11.0 || ^9.0.0
+
+This integration is compatible with **Cisco Firepower Threat Defense (FTD)** appliances managed via the **Cisco Firepower Management Center (FMC)**. It supports FTD software version 6.x and version 7.x, as these versions utilize the FMC for centralized policy and logging configuration.
 
 ## Scaling and Performance
-- Supports high-volume syslog ingestion using TCP and UDP inputs
-- Can handle multiple concurrent connections when using TCP input
-- UDP input provides low-latency log collection suitable for high-throughput environments
-- Logfile input allows reading from local log files for batch processing or archival data
-- Performance depends on network bandwidth, Elastic Agent resources, and Elasticsearch cluster capacity
-- For high-volume deployments, consider using multiple Elastic Agents with load balancing
+
+- **Transport/Collection Considerations:** The Cisco FTD integration primarily uses network-based collection (Syslog). While UDP (port 514) offers lower latency and less overhead on the firewall, TCP (port 1468) is recommended for production environments to ensure reliable delivery of security events and to support TLS encryption for data in transit.
+- **Data Volume Management:** Firewalls can generate an immense volume of logs. To optimize performance, it is recommended to enable "Log at End of Connection" rather than "At Start and End" to halve connection log volume. Additionally, users should configure severity levels to only send relevant informational or warning events, filtering out high-frequency debugging logs at the FTD source.
+- **Elastic Agent Scaling:** For high-throughput environments processing tens of thousands of events per second, a dedicated Elastic Agent should be deployed. In extremely large deployments, multiple Agents should be placed behind a network load balancer to distribute the incoming syslog stream and provide high availability.
 
 # Set Up Instructions
 
 ## Vendor prerequisites
-- Cisco Firepower Threat Defense (FTD) device configured and operational
-- Network connectivity between FTD device and Elastic Agent host
-- Syslog logging enabled on the FTD device
-- Appropriate firewall rules to allow syslog traffic from FTD to Elastic Agent (if applicable)
-- Access to FTD management interface for configuration changes
+
+- **Administrative Access:** You must have administrative credentials to log in to the Firepower Device Manager (FDM) web interface or Firepower Management Center (FMC).
+- **Network Connectivity:** The FTD device must have a clear network path to the Elastic Agent. Ensure that the management or data interface used for logging can reach the Agent's IP address.
+- **Firewall Rules:** Any intermediate firewalls must allow traffic on the chosen syslog port (e.g., UDP 514 or TCP 1468).
+- **License Requirements:** Ensure the FTD device has active licenses for Threat, Malware, and URL Filtering if you wish to collect those specific event types.
+- **IP Information:** Knowledge of the Elastic Agent's static IP address and the intended protocol (TCP or UDP).
 
 ## Elastic prerequisites
-- Elastic Stack version ^8.11.0 || ^9.0.0
-- Elastic Agent installed and configured
-- Sufficient network bandwidth and system resources for log ingestion
-- Appropriate Elasticsearch cluster capacity for expected log volume
+
+- **Elastic Agent Installation:** The Elastic Agent must be installed on a host reachable by the Cisco FTD and must be enrolled in Fleet with an active policy.
+- **Version Requirements:** It is recommended to use Elastic Stack version 8.x for the best compatibility with the Cisco FTD integration features.
+- **Network Configuration:** The host running the Elastic Agent must be configured to allow inbound traffic on the specific syslog port (default `514`) from the FTD management IP or data interface IP.
 
 ## Vendor set up steps
 
-### TCP Input Configuration
-1. Log into the FTD management interface (Firepower Management Center or FDM)
-2. Navigate to the device-specific configuration page
-3. Search for or navigate to "FTD Logging" or "Configure Logging on FTD" page
-4. Configure syslog server settings:
-   - Set the syslog server IP address to the Elastic Agent host IP
-   - Set the syslog port (default: 9003 for TCP)
-   - Select TCP as the transport protocol
-   - Enable the appropriate log types (security events, connection events, etc.)
-5. Save and deploy the configuration to the FTD device
-6. Verify syslog connectivity by checking for test messages
+### For Syslog Collection via Firepower Management Center (FMC):
 
-### UDP Input Configuration
-1. Log into the FTD management interface
-2. Navigate to the device-specific configuration page
-3. Search for or navigate to "FTD Logging" or "Configure Logging on FTD" page
-4. Configure syslog server settings:
-   - Set the syslog server IP address to the Elastic Agent host IP
-   - Set the syslog port (default: 9003 for UDP)
-   - Select UDP as the transport protocol
-   - Enable the appropriate log types (security events, connection events, etc.)
-5. Save and deploy the configuration to the FTD device
-6. Verify syslog connectivity by checking for test messages
-
-### Logfile Input Configuration
-1. Ensure FTD device is configured to write logs to a file system accessible by Elastic Agent
-2. Identify the log file path(s) on the system (for example, `/var/log/cisco-ftd.log`)
-3. Ensure Elastic Agent has read permissions for the log file(s)
-4. Configure log rotation if needed to prevent disk space issues
-
-Note: Cisco provides a range of Firepower devices, which may have different configuration steps. We recommend users navigate to the device specific configuration page, and search for/go to the "FTD Logging" or "Configure Logging on FTD" page for the specific device.
+1.  Log in to your **Firepower Management Center (FMC)** web interface with administrative privileges.
+2.  Navigate to **Devices > Platform Settings** from the top navigation bar.
+3.  Create a new policy by clicking **New Policy** and selecting **Threat Defense Settings**, or click the edit icon (pencil) next to an existing policy already assigned to your FTD appliances.
+4.  Within the policy editor, select the **Syslog** tab from the left-hand sidebar.
+5.  On the **Logging Setup** page, locate the **Enable Logging** checkbox and ensure it is checked. This is a mandatory global setting.
+6.  Select the **Syslog Servers** tab from the left-hand menu to define the Elastic Agent destination.
+7.  Click the **Add** button to configure the connection to the Elastic Agent.
+8.  In the **Add Syslog Server** dialog, fill in the following details:
+    *   **IP Address**: Select an existing network object or create a new one containing the IP address of your Elastic Agent host.
+    *   **Protocol**: Select either **TCP** or **UDP**. Ensure this matches your configuration in Kibana.
+    *   **Port**: Enter the port number the Elastic Agent is listening on (default is `514`).
+    *   **Available Zones**: Select the security zones or interfaces through which the FTD can reach the Elastic Agent and move them to the **Selected Zones/Interfaces** column.
+9.  **Note on TCP**: If you selected **TCP**, it is highly recommended to check the box **Allow user traffic to pass when TCP syslog server is down** to prevent a network outage if the Elastic Agent host is rebooted.
+10. Navigate to **Logging Destinations** on the left menu to define what events are sent.
+11. Click **Add** to create a new logging filter:
+    *   **Logging Destination**: Select **Syslog Server**.
+    *   **Event Class**: Choose specific classes (e.g., `app`, `auth`, `system`) or use a custom **Event List**.
+    *   **Logging Level**: Select the minimum severity level (e.g., `Informational`) to forward.
+12. Click **Save** at the bottom of the page to save the policy configuration.
+13. Deploy the changes by navigating to **Deploy > Deployment**, selecting the target FTD appliances, and clicking **Deploy**.
 
 ## Kibana set up steps
-1. Log into Kibana
-2. Navigate to **Integrations** > **Browse integrations**
-3. Search for "Cisco FTD" and select the integration
-4. Click **Add Cisco FTD**
-5. Configure the integration:
-   - **Name**: Provide a name for the integration instance
-   - **Data stream**: Select "Cisco FTD logs"
-   - **Input type**: Choose TCP, UDP, or Log file based on your configuration
-   - **TCP/UDP Configuration**:
-     - Set the host and port to match your Elastic Agent configuration
-     - Configure timezone offset if needed (default: UTC)
-     - Enable "Preserve original event" if you want to keep raw log messages
-     - Configure internal/external zones if needed for network direction detection
-   - **Logfile Configuration**:
-     - Specify the log file path(s)
-     - Configure timezone offset if needed
-     - Set internal/external zones if applicable
-6. Click **Save and continue**
-7. Add the integration to an agent policy or create a new agent policy
-8. Deploy the agent policy to your Elastic Agents
-9. Verify the agent is receiving data by checking the agent status in Kibana
+
+### For Cisco FTD Log Ingestion:
+
+1. **Navigate to Integrations:** Log in to Kibana and go to **Management > Integrations**. Search for "Cisco FTD" and select the integration.
+2. **Add Integration:** Click **Add Cisco FTD**.
+3. **Configure Integration Inputs:**
+   - Locate the **Syslog** input section.
+   - **Syslog Host:** Set this to `0.0.0.0` to listen on all available interfaces or the specific IP of the Agent host.
+   - **Syslog Port:** Set this to the port you configured in the FMC (e.g., `514`).
+   - **Protocol:** Select the protocol (TCP or UDP) that matches your FMC configuration.
+4. **Advanced Settings:** Expand the **Advanced options** if you need to adjust internal timeouts or custom tags for specific FTD clusters.
+5. **Assign to Policy:** Choose the **Existing hosts** tab and select the Agent Policy that is currently applied to your Elastic Agent.
+6. **Save and Deploy:** Click **Save and Continue**, then click **Add integration to policy**. The configuration will be automatically pushed to your Elastic Agent.
 
 # Validation Steps
-1. **Verify Agent Status**:
-   - In Kibana, navigate to **Management** > **Fleet** > **Agents**
-   - Confirm the Elastic Agent shows as "Healthy" and has the Cisco FTD integration assigned
-   - Check the agent logs for any connection errors
 
-2. **Trigger Test Events**:
-   - Generate test network traffic through the FTD device (for example, web browsing, file download)
-   - Or trigger a security event by accessing a known malicious URL or downloading a test file
-   - Verify the FTD device is sending syslog messages (check FTD logs or management interface)
+After configuration is complete, follow these steps to verify data is flowing correctly from Cisco FTD to the Elastic Stack.
 
-3. **Verify Data Ingestion**:
-   - In Kibana, navigate to **Discover**
-   - Select the `logs-cisco_ftd.log-*` data stream
-   - Verify events are appearing with recent timestamps
-   - Check that events contain expected fields such as `cisco.ftd.*`, `source.ip`, `destination.ip`, etc.
+### 1. Trigger Data Flow on Cisco FTD:
+- **Generate authentication event:** Log out of the FMC or the FTD CLI and log back in to trigger an authentication syslog message.
+- **Generate configuration event:** Access the FTD CLI and enter configuration mode (e.g., `configure terminal` if applicable, or make a minor change in FMC) and then exit or deploy to generate an audit log.
+- **Generate network traffic:** From a workstation protected by the FTD, browse to several external websites to generate connection events.
+- **Trigger security event:** If in a lab environment, use a tool like `curl` to simulate a non-harmful but signature-matching string to trigger an IPS event.
 
-4. **Validate Event Fields**:
-   - Open a sample event and verify:
-     - `@timestamp` is correctly parsed
-     - `cisco.ftd.message_id` is present
-     - Network fields (`source.ip`, `destination.ip`, `source.port`, `destination.port`) are populated
-     - Security event fields are present for security-related events
-     - `event.original` contains the raw syslog message (if preserve_original_event is enabled)
-
-5. **Check for Parsing Errors**:
-   - Filter for `event.outcome: failure` or check for `error.message` fields
-   - Review any events with parsing issues
-   - Verify timezone configuration if timestamps appear incorrect
+### 2. Check Data in Kibana:
+1. Navigate to **Analytics > Discover**.
+2. Select the `logs-*` data view.
+3. Enter the following KQL filter: `data_stream.dataset : "cisco_ftd.log"`
+4. Verify logs appear in the results. Expand a log entry and confirm these fields are populated:
+   - `event.dataset` (should be `cisco_ftd.log`)
+   - `source.ip` and/or `destination.ip` (verifying network traffic parsing)
+   - `event.action` (e.g., connection-built, connection-teardown, or blocked)
+   - `cisco_ftd.mnemonic` (e.g., `1-106023` or similar Cisco-specific identifiers)
+   - `message` (containing the raw syslog payload from the FTD)
+5. Navigate to **Analytics > Dashboards** and search for "Cisco FTD" to view pre-built visualizations for traffic and threats.
 
 # Troubleshooting
 
 ## Common Configuration Issues
 
-**Issue**: No data appearing in Kibana Discover
-- **Solution**: 
-  - Verify Elastic Agent is running and healthy
-  - Check network connectivity between FTD device and Elastic Agent
-  - Verify syslog server configuration on FTD device matches Elastic Agent host/port
-  - Check firewall rules allow syslog traffic
-  - Review Elastic Agent logs for connection errors
-  - Verify the integration is properly assigned to the agent policy
-
-**Issue**: Service failed to start
-- **Solution**:
-  - Check Elastic Agent logs for specific error messages
-  - Verify port is not already in use by another service
-  - Ensure Elastic Agent has necessary permissions (especially for logfile input)
-  - Check system resources (CPU, memory, disk space)
-
-**Issue**: Incorrect timezone in events
-- **Solution**:
-  - Configure the `tz_offset` parameter in the integration settings
-  - Use IANA timezone format (for example, "America/New_York") or offset format (for example, "+0500")
-  - Verify FTD device timezone settings match your configuration
-
-**Issue**: Network direction not correctly identified
-- **Solution**:
-  - Configure internal and external zones in the integration settings
-  - Ensure zone names match exactly with FTD device zone configuration
-  - Verify `private_is_internal` setting matches your network topology
-  - Check that `cisco.ftd.ingress_zone` and `cisco.ftd.egress_zone` fields are present in events
+- **Pending Deployment**: Changes made in the FDM interface (like adding a syslog server) do not take effect immediately. You must click the **Deploy** icon and wait for the process to complete before logs start flowing.
+- **Interface Routing Mismatch**: If you select the "Management" interface for syslog but the Agent is on a network reachable only via a "Data" interface, the logs will fail to send. Verify the routing table on the FTD.
+- **Rule-Level Logging Disabled**: If you see system logs but no traffic/connection logs, check the Access Control Policy. Each rule must have logging explicitly enabled in its properties.
+- **Port Conflict**: Ensure no other service or another Elastic Agent integration is already listening on the configured syslog port (e.g., 514) on the same host.
 
 ## Ingestion Errors
 
-**Issue**: Events showing parsing errors or missing fields
-- **Solution**:
-  - Check `event.original` field to see the raw syslog message
-  - Verify FTD device is sending logs in expected syslog format
-  - Review Elastic Agent logs for parsing error details
-  - Ensure FTD device software version is compatible with the integration
-  - Check if custom message formats require pipeline modifications
-
-**Issue**: `cisco.ftd.security` field contains flattened data but aggregations fail
-- **Solution**:
-  - Starting from version 2.21.0, known security fields are moved to `cisco.ftd.security_event` for better aggregation support
-  - Use `cisco.ftd.security_event.*` fields for aggregations instead of `cisco.ftd.security.*`
-  - To add more fields to `cisco.ftd.security_event`, create a custom ingest pipeline:
-    1. Navigate to **Stack Management** > **Ingest Pipelines**
-    2. Create pipeline named `logs-cisco_ftd.log@custom`
-    3. Add Rename processors to move fields from `cisco.ftd.security.*` to `cisco.ftd.security_event.*`
-    4. Optionally add Convert processors to set correct data types
-
-**Issue**: Missing or incorrect field mappings
-- **Solution**:
-  - Review the exported fields documentation in the integration README
-  - Verify FTD message IDs are supported by checking sample events
-  - Some fields may be vendor-specific and require custom mapping
-  - Check integration version changelog for recent field additions
-
-## API Authentication Errors
-- **Not applicable**: This integration uses syslog protocol and does not require API authentication
+- **Grok Parse Failures**: If logs appear with the tag `_grokparsefailure`, the FTD might be sending logs in an unexpected format. Ensure the FTD is not configured to use a custom "External Logging" format that deviates from standard Cisco timestamps.
+- **Timezone Mismatches**: If logs appear to be "missing," check the time filter in Discover. Mismatched timezones between the FTD device and the Elastic Stack can cause logs to be indexed with timestamps in the future or the past.
+- **Truncated Messages**: If log messages appear cut off, verify the MTU settings on the network path and the maximum message length settings in the Elastic Agent's UDP/TCP input configuration.
+- **Identifying Failures**: Check the `error.message` field in Kibana Discover for specific details regarding mapping or parsing exceptions.
 
 ## Vendor Resources
-- [Cisco Secure Firewall Management Center Examples](https://www.cisco.com/c/en/us/support/security/defense-center/products-configuration-examples-list.html)
-- [Configure Logging on FTD through FMC](https://www.cisco.com/c/en/us/support/docs/security/firepower-ngfw/200479-Configure-Logging-on-FTD-via-FMC.html)
-- [Configure FMC to Send Audit Logs to a Syslog Server](https://www.cisco.com/c/en/us/support/docs/security/secure-firewall-management-center/221019-configure-fmc-to-send-audit-logs-to-a-sy.html)
+
+- [Configure Logging on FTD via FMC - Cisco](https://www.cisco.com/c/en/us/support/docs/security/firepower-ngfw/200479-Configure-Logging-on-FTD-via-FMC.html)
+- [Cisco Secure Firewall Threat Defense Syslog Messages](https://www.cisco.com/c/en/us/td/docs/security/firepower/Syslogs/fptd_syslog_guide/about.html)
 
 # Documentation sites
-- [Cisco Secure Firewall Management Center Examples](https://www.cisco.com/c/en/us/support/security/defense-center/products-configuration-examples-list.html)
-- [Cisco Firepower Threat Defense Product Page](https://www.cisco.com/c/en/us/support/security/firepower-ngfw/series.html)
-- [Cisco FTD Software Release and Sustaining Bulletin](https://www.cisco.com/c/en/us/products/collateral/security/firewalls/bulletin-c25-743178.html)
-- [Elastic Integrations Documentation](https://www.elastic.co/guide/en/integrations/index.html)
-- [Elastic Agent Documentation](https://www.elastic.co/guide/en/fleet/current/index.html)
-- [Elastic Ingest/Fleet Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems)
+
+- [Configure and Verify Syslog in Firepower Device Manager - Cisco](https://www.cisco.com/c/en/us/support/docs/security/firepower-2130-security-appliance/220231-configure-and-verify-syslog-in-firepower.html)
+- Refer to the official vendor website for additional resources.
