@@ -1,272 +1,263 @@
-# Microsoft Office 365 Integration
+# Microsoft Office 365 Integration for Elastic
+
+> **Note**: This documentation was generated using AI and should be reviewed for accuracy.
 
 ## Overview
+The Microsoft Office 365 integration for Elastic enables you to collect and analyze activity data from across the Microsoft 365 ecosystem. This provides visibility into user actions, administrative changes, and security events by ingesting data using the [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference). By centralizing these logs, you can monitor your environment for security threats, ensure compliance, and troubleshoot administrative issues.
 
-The Microsoft Office 365 integration for Elastic collects activity data using the [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference). This data enables monitoring, searching, and analyzing user and admin actions across Microsoft Office 365, including activity from services like SharePoint and Exchange.
-
-### How it works
-
-The integration works by collecting user, admin, system, and policy actions, as well as events from Office 365 and Azure AD activity logs exposed by the [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference).
+This integration facilitates:
+- Security monitoring and threat detection: You can monitor for unauthorized access attempts, suspicious login activity in Microsoft Entra ID (Azure AD), and unusual administrative privilege escalations.
+- Data loss prevention (DLP) oversight: You'll collect and analyze DLP events to identify when sensitive information is shared or accessed in violation of corporate policies across Exchange and SharePoint.
+- Compliance and auditing: You can maintain a long-term record of all system and user actions required for regulatory compliance, such as GDPR, HIPAA, or SOC2.
+- Service administration tracking: You'll track changes to mailbox permissions in Exchange Online, file sharing activities in SharePoint, and configuration modifications in your tenant.
 
 ### Compatibility
+This integration is compatible with the following:
+- Microsoft Office 365 Management Activity API `v1.0`
+- Microsoft Entra ID (formerly Azure Active Directory)
+- Microsoft Purview (for Audit and DLP features)
+- Supported workloads: `Audit.AzureActiveDirectory`, `Audit.Exchange`, `Audit.SharePoint`, `Audit.General`, and `DLP.All`
 
-- **API Version**: The Microsoft Office 365 integration is compatible with version 1.0 of Microsoft Office 365 Management API.
-- **Supported Workloads**: This integration supports the following Microsoft Office 365 workloads:
-  - Audit.AzureActiveDirectory
-  - Audit.Exchange
-  - Audit.SharePoint
-  - Audit.General
-  - DLP.All
-
-For detailed information on the supported record types within these workloads, please refer to the [AuditLogRecordType documentation](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype).
+### How it works
+This integration works by collecting user, admin, system, and policy actions, as well as events from Office 365 and Microsoft Entra ID activity logs. It retrieves this information by making API calls to the [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference). An Elastic Agent configured with this integration periodically polls the API for new content blobs, downloads the event data, and forwards it to your Elastic deployment. The integration uses the modern Common Expression Language (CEL) input to provide rich telemetry formatted as JSON objects, ensuring efficient and reliable data collection.
 
 ## What data does this integration collect?
 
-This integration collects log messages of the following types:
+The Microsoft Office 365 integration collects log messages of the following types:
+*   Microsoft Office 365 audit logs: Comprehensive records of user and admin activities across various Office 365 services, collected via the [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference). These are the same logs that are available under [Audit Log Search](https://learn.microsoft.com/en-us/purview/audit-search) in the Microsoft Purview portal.
+*   Authentication logs: Detailed records of sign-in attempts, MFA challenges, and application access events from Azure Active Directory/Microsoft Entra ID.
+*   Content-specific logs: Activity logs for specific workloads including SharePoint file operations, Exchange mailbox access, and general Office 365 service events.
+*   DLP events: Specialized logs detailing matches against Data Loss Prevention (DLP) policies across all supported Office 365 services.
 
-- `Audit`: Uses the [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference) to retrieve audit messages from Office 365 and Azure AD activity logs. These are the same logs that are available under [Audit Log Search](https://learn.microsoft.com/en-us/purview/audit-search) in the Microsoft Purview portal.
+This integration includes the following data streams:
+*   `audit`: This data stream collects Microsoft Office 365 audit logs using the modern Common Expression Language (CEL) input. It provides rich telemetry including user actions, system events, and policy changes formatted as `json` objects.
+*   Deprecated `audit`: A legacy data stream used for older installations. You should deactivate this option and instead use the one described above.
 
 ### Supported use cases
 
-Integrating Microsoft Office 365 with Elastic SIEM enables collection of audit logs for monitoring and analysis, which can then be visualized in Kibana.
+Integrating Microsoft Office 365 with Elastic provides a powerful solution for enhancing your security posture and operational visibility. You can use this integration for the following use cases:
+*   Security monitoring and analysis: Leverage Elastic SIEM to collect and analyze audit logs for monitoring and analysis, which you can then visualize in Kibana.
+*   Real-time threat detection: Identify suspicious activities such as unusual sign-in attempts, unauthorized file access, or unauthorized changes to security policies.
+*   Compliance and auditing: Maintain a searchable, long-term archive of audit logs to meet regulatory compliance requirements and conduct thorough security audits.
+*   Incident response: Accelerate incident investigations by correlating Office 365 data with other security and observability data sources within Elastic.
 
 ## What do I need to use this integration?
 
-To use this integration you need to [enable `Audit Log`](https://learn.microsoft.com/en-us/purview/audit-log-enable-disable) and register an application in [Microsoft Entra ID (formerly known as Azure Active Directory)](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id).
+To use this integration, you'll need the following:
 
-Once the Microsoft Entra ID application is registered, you can set up its credentials and permissions, and gather the information needed by the Microsoft Office 365 Elastic integration, as follows:
+- An active Elastic Agent installed and enrolled in Fleet.
+- Secure network connectivity between the Elastic Agent and the Elastic Stack.
+- Outbound HTTPS access (port `443`) from the Elastic Agent host to `manage.office.com` and `login.microsoftonline.com`.
+- [Audit logging enabled](https://learn.microsoft.com/en-us/purview/audit-log-enable-disable) in your Microsoft 365 tenant.
+- A registered application in [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id) with administrative access to grant API permissions.
 
-1. Note the `Application (client) ID` and `Directory (tenant) ID` in the registered application's `Overview` page.
-2. Create a new secret to configure the authentication of your application, as follows:
-    - Navigate to `Manage -> Certificates & Secrets` section.
-    - Click `New client secret`, provide a description and create the new secret.
-      ![New Client Secret](../img/new_client_secrets.png)
-    - Note the `Value` which is required for setup of the integration.
-      ![Value](../img/value.png)
-3. Add permissions to your registered application. Please refer to the [Office 365 Management API documentation](https://learn.microsoft.com/en-us/office/office-365-management-api/get-started-with-office-365-management-apis#specify-the-permissions-your-app-requires-to-access-the-office-365-management-apis) for more details.
-    - Navigate to `Manage -> API permissions` page. Under Configured permissions click `Add a permission`.
-    - Select `Office 365 Management APIs` tile from the listed tiles.
-      ![Select management API](../img/select_management_api.png)
-    - Click `Application permissions`.
-      ![API Permission](../img/permission_type.png)
-    - Under `ActivityFeed`, select `ActivityFeed.Read` permission. This is minimum required permissions to read audit logs of your organization as [provided in the documentation](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference). Optionally, select `ActivityFeed.ReadDlp` to read DLP policy events.
-    - Click `Add permissions`.
-      ![Required Permission](../img/required_permission.png)
-    - If `User.Read` permission under `Microsoft.Graph` tile is not added by default, add this permission.
-    - After the permissions are added, the admin has to grant consent for these permissions.
+Once you register the Microsoft Entra ID application, you can configure its credentials and permissions to gather the information required by the integration:
 
-The instructions above assume that you wish to collect data from your own tenant. If that is not the case, additional steps are required to obtain tenant admin consent for the required permissions. The API documentation describes [a method of gathering consent via redirect URLs](https://learn.microsoft.com/en-us/office/office-365-management-api/get-started-with-office-365-management-apis#get-office-365-tenant-admin-consent), and other consent flows may be possible.
+1. Record the `Application (client) ID` and `Directory (tenant) ID` from the registered application's `Overview` page.
+2. Create a new client secret to authenticate your application:
+    - Navigate to the `Certificates & secrets` section under `Manage`.
+    - Select `New client secret`, provide a description, and create the secret.
+    - Record the secret `Value` immediately. This is required for the integration setup and won't be visible again after you leave the page.
+3. Add the required permissions to your registered application. For more details, refer to the [Office 365 Management API documentation](https://learn.microsoft.com/en-us/office/office-365-management-api/get-started-with-office-365-management-apis#specify-the-permissions-your-app-requires-to-access-the-office-365-management-apis):
+    - Navigate to the `API permissions` page under `Manage`. Under `Configured permissions`, select `Add a permission`.
+    - Select the `Office 365 Management APIs` tile.
+    - Select `Application permissions`.
+    - Under `ActivityFeed`, select the `ActivityFeed.Read` permission. This is the minimum requirement to read organization audit logs. You can optionally select `ActivityFeed.ReadDlp` to read DLP policy events.
+    - Select `Add permissions`.
+    - If the `User.Read` permission under the `Microsoft Graph` tile is not added by default, add it.
+    - A tenant administrator must grant consent for these permissions in the Azure portal.
+
+These steps assume you're collecting data from your own tenant. If you're collecting data from a different tenant, you'll need to obtain tenant admin consent for the required permissions. The API documentation describes [a method of gathering consent via redirect URLs](https://learn.microsoft.com/en-us/office/office-365-management-api/get-started-with-office-365-management-apis#get-office-365-tenant-admin-consent).
 
 ## How do I deploy this integration?
 
-This integration supports both Elastic Agentless-based and Agent-based installations.
+### Agent-based deployment
 
-### Agentless-based installation
+Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](https://www.elastic.co/guide/en/fleet/current/elastic-agent-installation.html). You can install only one Elastic Agent per host.
 
-Agentless integrations allow you to collect data without having to manage Elastic Agent in your cloud. They make manual agent deployment unnecessary, so you can focus on your data instead of the agent that collects it. For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and the [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html).
+Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. This functionality is in beta and is subject to change. Beta features are not subject to the support SLA of official GA features.
+### Agentless deployment
 
-### Agent-based installation
+Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
 
-Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
+For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html).
 
-### Setup
+### Set up steps in Microsoft Office 365
 
-1. In the top search bar in Kibana, search for **Integrations**.
-2. In the search bar, type **Microsoft Office 365**.
-3. Select the **Microsoft Office 365** integration from the search results.
-4. Select **Add Microsoft Office 365** to add the integration.
-5. Enable and configure only the collection methods which you will use.
-   - To **Collect audit logs**, you'll need to configure **Application (client) ID**, **Client Secret** and **Directory (tenant) ID**.
-   - Do not use **DEPRECATED - Collect audit logs** as it's deprecated.
-6. Select **Save and continue** to save the integration.
+Follow these steps to configure your Microsoft environment for API-based collection:
+
+1.  **Register an application in Microsoft Entra ID:**
+    - Log in to the [Azure Portal](https://portal.azure.com).
+    - Navigate to **Microsoft Entra ID > App registrations > New registration**.
+    - Provide a name, such as `Elastic-O365`, and select **Accounts in this organizational directory only (Single tenant)**.
+    - Click **Register**.
+    - Save the **Application (client) ID** and **Directory (tenant) ID** for later use.
+2.  **Configure API permissions:**
+    - In the app menu, navigate to **API permissions > Add a permission**.
+    - Select **Office 365 Management APIs > Application permissions**.
+    - Expand the **ActivityFeed** section and check both `ActivityFeed.Read` and `ActivityFeed.ReadDlp`.
+    - Click **Add permissions**, then click **Grant admin consent for <your-organization>** (replace with your actual value) and confirm.
+3.  **Create a client secret:**
+    - Go to **Certificates & secrets > New client secret**.
+    - Enter a description and select an expiration period, then click **Add**.
+    - Immediately copy the **Secret Value**. You won't be able to see it again after you leave this page.
+4.  **Enable auditing in Microsoft Purview:**
+    - Access the [Microsoft Purview portal](https://purview.microsoft.com).
+    - Navigate to **Solutions > Audit**.
+    - If auditing isn't already enabled, click the banner to **Start recording user and admin activity**. Note that activation can take up to 48 hours.
+
+#### Vendor resources
+
+- [Get started with Office 365 Management APIs](https://learn.microsoft.com/en-us/office/office-365-management-api/get-started-with-office-365-management-apis)
+
+### Set up steps in Kibana
+
+You can configure the integration in Kibana to collect logs using the modern Management Activity API or the legacy method if you have specific requirements.
+
+#### Collect audit logs using the Management Activity API
+
+1.  In Kibana, navigate to **Management > Integrations** and search for **Microsoft Office 365**.
+2.  Click **Add Microsoft Office 365** and select an Elastic Agent policy.
+3.  Configure the following settings for the primary input:
+    - **Base URL of Office Management API**: The base endpoint for the API. Default is `https://manage.office.com`.
+    - **Interval**: How frequently the API is polled for new data. Default is `3m`.
+    - **Directory (tenant) ID**: The unique Directory (tenant) ID from your Entra ID portal.
+    - **Application (client) ID**: The Client ID used for OAuth 2.0 authentication.
+    - **Client Secret**: The secret value generated in your Entra ID app registration.
+    - **OAuth 2.0 Token URL**: The base endpoint for generating tokens. Default is `https://login.microsoftonline.com`.
+    - **Content Type**: A comma-separated list of workloads to fetch. Supported types include `Audit.AzureActiveDirectory, Audit.Exchange, Audit.SharePoint, Audit.General, DLP.All`.
+    - **Initial Interval**: The initial window for the first API call (maximum 7 days). Default is `167h55m`.
+    - **Batch Interval**: The interval for each individual API request (maximum 24 hours). Default is `1h`.
+    - **Preserve original event**: If enabled, this stores the raw JSON payload in the `event.original` field.
+4.  Expand **Advanced options** for further configuration:
+    - **Token Scopes**: The scopes required for the OAuth 2.0 token. Default is `['https://manage.office.com/.default']`.
+    - **Resource SSL Configuration**: Configure SSL settings, including certificate authorities or verification modes.
+    - **Resource Proxy**: Set up a proxy if your environment requires one using the format `http[s]://<user>:<password>@<server>:<port>`.
+    - **Enable request tracing**: Use this for debugging API interactions. It logs requests and responses, which may expose sensitive information.
+5.  Click **Save and continue**.
+
+#### Legacy configuration (Deprecated)
+
+This option uses a deprecated method to collect logs. Only use this if you have a legacy requirement that cannot be met by the standard API input.
+
+1.  Provide the **Application (client) ID** and **Client secret**.
+2.  If using certificate-based authentication, specify the **Path to certificate file** and **Path to private key file**.
+3.  Enter the **Directory (tenant) IDs** as a list, such as `['<your-tenant-id>']` (replace with your actual value).
+4.  Select the **Content types** you wish to collect.
+5.  Click **Save and continue**.
 
 ### Validation
 
-#### Dashboards populated
+To verify the integration is working correctly, check the status of your Elastic Agent and then confirm data flow in Kibana.
 
-1. In the top search bar in Kibana, search for **Dashboards**.
-2. In the search bar, type **Microsoft Office 365**.
-3. Select a dashboard for the dataset you are collecting, and verify the dashboard information is populated.
+#### Verify agent status
 
-#### Transforms healthy
+1.  In Kibana, navigate to **Management > Fleet > Agents**.
+2.  Locate the Elastic Agent running the Microsoft Office 365 integration.
+3.  Ensure the status is **Healthy**. If it's in a **Warning** or **Offline** state, check the agent logs for errors related to the Office 365 input.
 
-1. In the top search bar in Kibana, search for **Transforms**.
-2. Select the **Data / Transforms** from the search results.
-3. In the search bar, type **o365**.
-4. All transforms from the search results should indicate **Healthy** under the **Health** column.
+#### Trigger test events
 
-### Troubleshooting
+Perform actions in your Microsoft 365 tenant to generate audit logs:
+- **Entra ID:** Create a test user or modify a group's membership in the **Microsoft Entra admin center**.
+- **Exchange:** Send an email between internal accounts or change a mailbox permission in the **Exchange admin center**.
+- **SharePoint:** Upload a file to a site or change a folder's sharing settings to trigger `FileUploaded` or `FileModified` events.
 
-In the case of a permissions issue, it can be useful to enable request tracing and look at request trace logs to inspect the interaction with the server. Token values can be decoded using [https://jwt.ms/](https://jwt.ms/), and should include a `roles` section with the configured permissions.
+#### Check data in Kibana
 
-When errors occur in the Microsoft Office 365 integration while collecting data, refer to the Office 365 Management Activity API documentation for the full list of error codes and their meanings. See the official [Office 365 Management Activity API — Errors](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference#errors).
+1.  Navigate to **Analytics > Discover**.
+2.  Select the `logs-*` data view.
+3.  Filter the results using the following KQL query: `data_stream.dataset : "o365.audit"`
+4.  Verify that events appear with recent timestamps. Expand a document and confirm the following:
+    - `event.dataset` is set to `o365.audit`.
+    - `o365.audit.UserId` contains the email or ID of the user who triggered the event.
+    - `event.action` matches the activity performed (e.g., `Add user`).
+5.  Navigate to **Analytics > Dashboards** and search for **Microsoft Office 365** to view pre-built visualizations. Check the **Office 365 Audit Dashboard** to ensure charts and tables are populating with data.
 
-### Migration From the Deprecated o365audit Input
+## Troubleshooting
 
-**NOTE:** As Microsoft is no longer supporting Azure Active Directory Authentication Library (ADAL), the existing o365audit input has been deprecated in favor of the [CEL](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html) input in version `1.18.0`. Hence for versions `>= 1.18.0`, certificate based authentication (provided by earlier o365audit input) is no longer supported.
+For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).
 
-We request that users upgrading from integration version `< 1.18.0` to `>= 1.18.0` follow these steps:
+### Common configuration issues
 
-1. Upgrade the Elastic Stack version to `>= 8.7.1`.
-2. Upgrade the integration navigating via `Integrations -> Microsoft Office 365 -> Settings -> Upgrade`
-3. Upgrade the integration policy navigating via `Integrations -> Microsoft Office 365 -> integration policies -> Version (Upgrade)`. If `Upgrade` option doesn't appear under the `Version`, that means the policy is already upgraded in the previous step. Please go to the next step.
-4. Modify the integration policy:
-    * Disable existing configuration (marked as `Deprecated`) and enable `Collect Office 365 audit logs via CEL` configuration.
-    * Add the required parameters such as `Directory (tenant) ID`, `Application (client) ID`, `Client Secret` based on the previous configuration.
-    * Verify/Update `Initial Interval` configuration parameter to start fetching events from. This defaults to 7 days. Even if there is overlap in times, the events are not duplicated.
-    * Update the other configuration parameters as required and hit `Save Integration`.
+You might encounter the following issues when configuring or running the Microsoft Office 365 integration:
 
-Please refer [Upgrade an integration](https://www.elastic.co/guide/en/fleet/current/upgrade-integration.html) in case of any issues while performing integration upgrade.
+- No data appears immediately after setup: When you first enable a subscription, there's a documented Microsoft API delay of up to 12 hours. Don't troubleshoot connectivity until this window has passed.
+- API returns 403 Forbidden errors: This usually happens if you added permissions in the Azure Portal but didn't click **Grant admin consent**. Ensure the status shows "Granted" in the portal for all required permissions.
+- API returns empty results: If you haven't turned on the Purview Audit log, the API returns empty results even if you've correctly configured the integration. Verify the auditing status in the Microsoft Purview portal.
+- Configuration fails after upgrading to version 1.18.0 or newer: Ensure your Elastic Stack version is at least 8.7.1. Note that certificate-based authentication isn't supported in the newer CEL input.
+- Events are missing or have error messages: Check your Elastic Agent logs for CEL expression errors. These errors typically indicate a change in the upstream JSON schema from Microsoft.
+- Specific fields like `o365.audit.FileName` are missing: Some fields only exist for specific workloads. For example, `o365.audit.FileName` is only available for SharePoint and OneDrive logs. Check the `event.dataset` to confirm you're viewing the correct event type.
+- Troubleshooting complex authentication or data flow issues: You can enable the `enable_request_tracer` setting in the integration configuration to log raw requests and responses to the agent's filesystem. Only use this for temporary debugging as it can capture sensitive data.
+- OAuth flow fails with `invalid_client`: Verify that the `client_secret` in your configuration hasn't expired in the Azure Portal.
+- API authentication fails with token URL issues: Ensure the `token_url` setting matches your Azure environment, which is typically `https://login.microsoftonline.com`.
+- Authentication failures on the legacy input: The deprecated `o365audit` input used ADAL, which Microsoft is retiring. If you encounter authentication issues on the legacy input, migrate to the modern CEL-based input.
 
-## Data latency
+### Vendor resources
 
-This integration works by creating a subscription for each enabled content type, checking each subscription for available data, and downloading any data that is available.
+Use these resources for more information about the Microsoft Office 365 Management APIs:
 
-As discussed in Microsoft's [Working with the Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference#working-with-the-office-365-management-activity-api) documentation, when a subscription is first created it can take up to 12 hours for the first data to become available. Users of this integration should expect to see that initial delay.
+- [Office 365 Management Activity API Reference](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference)
+- [Audit Log Record Type Documentation](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype)
+- [Microsoft Purview Audit Log Setup](https://learn.microsoft.com/en-us/purview/audit-log-enable-disable)
 
-Data may become available out of order, so the earliest data will not necessarily be downloaded first. Data will be downloaded in the order in which it becomes available.
+## Performance and scaling
 
-If a new integration policy is created to fetch data from existing subscriptions, earlier data may be available and the integration will try to fetch it. This can help to fill short gaps in data. The Initial Interval setting controls how far back it will look. By default it will check for data that became available in the last week, which is the maximum time range allowed by the API.
+For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
+
+To ensure optimal performance in high-volume environments, consider the following:
+
+- Transport and collection considerations: This integration relies on API polling via the Office 365 Management Activity API. You configure the `Interval` (default `3m`) and `Batch Interval` (default `1h`) to balance data freshness with API rate limits. Be aware that Microsoft documents a latency of up to 12 hours for some data to become available for collection; adjusting the interval too low may result in empty API responses if the data isn't yet published by Microsoft.
+- Data volume management: Use the `Content Type` configuration to filter for only required workloads at the source. For example, if identity data is your priority, collecting only `Audit.AzureActiveDirectory` significantly reduces volume compared to enabling all types. Additionally, use the `Processors` setting to drop unnecessary fields or entire events at the Elastic Agent level before they're transmitted to the Elastic Stack.
+- Elastic Agent scaling: For high-throughput environments or large tenants with thousands of users, a single agent may reach resource limits. You can deploy multiple Elastic Agents and distribute the workload by configuring different agent policies to collect specific `Content Types` or by assigning different agents to monitor different `Directory (tenant) IDs`.
 
 ## Reference
 
-### Logs reference
+### Inputs used
 
-#### Audit
-An example event for `audit` looks as following:
+These inputs can be used with this integration:
+<details>
+<summary>cel</summary>
 
-```json
-{
-    "@timestamp": "2020-02-07T16:43:53.000Z",
-    "agent": {
-        "ephemeral_id": "f173faa4-2d61-4c41-8670-06930fd22753",
-        "id": "e9670ccb-33fc-41b0-90c1-b67dcf953c6a",
-        "name": "elastic-agent-35357",
-        "type": "filebeat",
-        "version": "8.18.0"
-    },
-    "client": {
-        "address": "213.97.47.133",
-        "ip": "213.97.47.133"
-    },
-    "data_stream": {
-        "dataset": "o365.audit",
-        "namespace": "12427",
-        "type": "logs"
-    },
-    "device": {
-        "id": "62eedfc0-b73c-206c-a59d-16457c7ebcd8"
-    },
-    "ecs": {
-        "version": "8.11.0"
-    },
-    "elastic_agent": {
-        "id": "e9670ccb-33fc-41b0-90c1-b67dcf953c6a",
-        "snapshot": false,
-        "version": "8.18.0"
-    },
-    "event": {
-        "action": "PageViewed",
-        "agent_id_status": "verified",
-        "category": [
-            "web"
-        ],
-        "code": "SharePoint",
-        "dataset": "o365.audit",
-        "id": "99d005e6-a4c6-46fd-117c-08d7abeceab5",
-        "ingested": "2025-12-15T13:36:59Z",
-        "kind": "event",
-        "original": "{\"ClientIP\":\"213.97.47.133\",\"CorrelationId\":\"622b339f-4000-a000-f25f-92b3478c7a25\",\"CreationTime\":\"2020-02-07T16:43:53\",\"CustomUniqueId\":true,\"EventSource\":\"SharePoint\",\"ExtendedProperties\":[{\"Name\":\"additionalDetails\",\"Value\":\"{\\\"DeviceId\\\":\\\"62eedfc0-b73c-206c-a59d-16457c7ebcd8\\\",\\\"DeviceOSType\\\":\\\"Linux\\\",\\\"DeviceTrustType\\\":\\\"\\\"}\"}],\"Id\":\"99d005e6-a4c6-46fd-117c-08d7abeceab5\",\"ItemType\":\"Page\",\"ListItemUniqueId\":\"59a8433d-9bb8-cfef-6edc-4c0fc8b86875\",\"ObjectId\":\"https://testsiem-my.sharepoint.com/personal/asr_testsiem_onmicrosoft_com/_layouts/15/onedrive.aspx\",\"Operation\":\"PageViewed\",\"OrganizationId\":\"b86ab9d4-fcf1-4b11-8a06-7a8f91b47fbd\",\"RecordType\":4,\"Site\":\"d5180cfc-3479-44d6-b410-8c985ac894e3\",\"UserAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:72.0) Gecko/20100101 Firefox/72.0\",\"UserId\":\"asr@testsiem.onmicrosoft.com\",\"UserKey\":\"i:0h.f|membership|1003200096971f55@live.com\",\"UserType\":0,\"Version\":1,\"WebId\":\"8c5c94bb-8396-470c-87d7-8999f440cd30\",\"Workload\":\"OneDrive\"}",
-        "outcome": "success",
-        "provider": "OneDrive",
-        "type": [
-            "info"
-        ]
-    },
-    "host": {
-        "id": "b86ab9d4-fcf1-4b11-8a06-7a8f91b47fbd",
-        "name": "testsiem.onmicrosoft.com"
-    },
-    "input": {
-        "type": "cel"
-    },
-    "network": {
-        "type": "ipv4"
-    },
-    "o365": {
-        "audit": {
-            "CorrelationId": "622b339f-4000-a000-f25f-92b3478c7a25",
-            "CreationTime": "2020-02-07T16:43:53",
-            "CustomUniqueId": true,
-            "EventSource": "SharePoint",
-            "ExtendedProperties": {
-                "additionalDetails": {
-                    "DeviceId": "62eedfc0-b73c-206c-a59d-16457c7ebcd8",
-                    "DeviceOSType": "Linux"
-                }
-            },
-            "ItemType": "Page",
-            "ListItemUniqueId": "59a8433d-9bb8-cfef-6edc-4c0fc8b86875",
-            "ObjectId": "https://testsiem-my.sharepoint.com/personal/asr_testsiem_onmicrosoft_com/_layouts/15/onedrive.aspx",
-            "RecordType": "4",
-            "Site": "d5180cfc-3479-44d6-b410-8c985ac894e3",
-            "UserId": "asr@testsiem.onmicrosoft.com",
-            "UserKey": "i:0h.f|membership|1003200096971f55@live.com",
-            "UserType": "0",
-            "Version": "1",
-            "WebId": "8c5c94bb-8396-470c-87d7-8999f440cd30"
-        }
-    },
-    "organization": {
-        "id": "b86ab9d4-fcf1-4b11-8a06-7a8f91b47fbd"
-    },
-    "related": {
-        "hosts": [
-            "testsiem.onmicrosoft.com"
-        ],
-        "ip": [
-            "213.97.47.133"
-        ],
-        "user": [
-            "asr",
-            "asr@testsiem.onmicrosoft.com"
-        ]
-    },
-    "source": {
-        "ip": "213.97.47.133"
-    },
-    "tags": [
-        "preserve_original_event",
-        "forwarded",
-        "o365-cel"
-    ],
-    "user": {
-        "domain": "testsiem.onmicrosoft.com",
-        "email": "asr@testsiem.onmicrosoft.com",
-        "id": "asr@testsiem.onmicrosoft.com",
-        "name": "asr"
-    },
-    "user_agent": {
-        "device": {
-            "name": "Mac"
-        },
-        "name": "Firefox",
-        "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:72.0) Gecko/20100101 Firefox/72.0",
-        "os": {
-            "full": "Mac OS X 10.14",
-            "name": "Mac OS X",
-            "version": "10.14"
-        },
-        "version": "72.0"
-    }
-}
-```
+## Setup
 
-### ECS field reference
+For more details about the CEL input settings, check the [Filebeat documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html).
 
-#### Audit
+Before configuring the CEL input, make sure you have:
+- Network connectivity to the target API endpoint
+- Valid authentication credentials (API keys, tokens, or certificates as required)
+- Appropriate permissions to read from the target data source
+
+### Collecting logs from CEL
+
+To configure the CEL input, you must specify the `request.url` value pointing to the API endpoint. The interval parameter controls how frequently requests are made and is the primary way to balance data freshness with API rate limits and costs. Authentication is often configured through the `request.headers` section using the appropriate method for the service.
+
+NOTE: To access the API service, make sure you have the necessary API credentials and that the Filebeat instance can reach the endpoint URL. Some services may require IP whitelisting or VPN access.
+
+To collect logs via API endpoint, configure the following parameters:
+
+- API Endpoint URL
+- API credentials (tokens, keys, or username/password)
+- Request interval (how often to fetch data)
+</details>
+
+
+### API usage
+
+You'll use these APIs with this integration:
+- [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference): This API provides visibility into user, admin, system, and policy actions and events from Microsoft 365 and Microsoft Entra ID activity logs.
+
+### Data streams
+
+#### audit
+
+The `audit` data stream provides events from the Office 365 Management Activity API of the following types: SharePoint, Exchange, Microsoft Entra ID, and general Office 365 audit records. You'll use this data stream to monitor user activity and configuration changes across your Microsoft 365 tenant.
+
+##### audit fields
+
+You can find a complete list of fields exported by the `audit` data stream in the following table:
+
 **Exported fields**
 
 | Field | Description | Type |
@@ -586,13 +577,144 @@ An example event for `audit` looks as following:
 | token.id | The unique token identifier of the API call used to make the audited change. | keyword |
 
 
-### Inputs used
+##### audit sample event
 
-These inputs are used in this integration:
-- [cel](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-cel)
-- [o365audit (DEPRECATED)](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-o365audit)
+This is a sample event for the `audit` data stream:
 
-### API usage
+An example event for `audit` looks as following:
 
-This integration dataset uses the following APIs:
-- `Audit`: [Office 365 Management Activity API](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference)
+```json
+{
+    "@timestamp": "2020-02-07T16:43:53.000Z",
+    "agent": {
+        "ephemeral_id": "f173faa4-2d61-4c41-8670-06930fd22753",
+        "id": "e9670ccb-33fc-41b0-90c1-b67dcf953c6a",
+        "name": "elastic-agent-35357",
+        "type": "filebeat",
+        "version": "8.18.0"
+    },
+    "client": {
+        "address": "213.97.47.133",
+        "ip": "213.97.47.133"
+    },
+    "data_stream": {
+        "dataset": "o365.audit",
+        "namespace": "12427",
+        "type": "logs"
+    },
+    "device": {
+        "id": "62eedfc0-b73c-206c-a59d-16457c7ebcd8"
+    },
+    "ecs": {
+        "version": "8.11.0"
+    },
+    "elastic_agent": {
+        "id": "e9670ccb-33fc-41b0-90c1-b67dcf953c6a",
+        "snapshot": false,
+        "version": "8.18.0"
+    },
+    "event": {
+        "action": "PageViewed",
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "code": "SharePoint",
+        "dataset": "o365.audit",
+        "id": "99d005e6-a4c6-46fd-117c-08d7abeceab5",
+        "ingested": "2025-12-15T13:36:59Z",
+        "kind": "event",
+        "original": "{\"ClientIP\":\"213.97.47.133\",\"CorrelationId\":\"622b339f-4000-a000-f25f-92b3478c7a25\",\"CreationTime\":\"2020-02-07T16:43:53\",\"CustomUniqueId\":true,\"EventSource\":\"SharePoint\",\"ExtendedProperties\":[{\"Name\":\"additionalDetails\",\"Value\":\"{\\\"DeviceId\\\":\\\"62eedfc0-b73c-206c-a59d-16457c7ebcd8\\\",\\\"DeviceOSType\\\":\\\"Linux\\\",\\\"DeviceTrustType\\\":\\\"\\\"}\"}],\"Id\":\"99d005e6-a4c6-46fd-117c-08d7abeceab5\",\"ItemType\":\"Page\",\"ListItemUniqueId\":\"59a8433d-9bb8-cfef-6edc-4c0fc8b86875\",\"ObjectId\":\"https://testsiem-my.sharepoint.com/personal/asr_testsiem_onmicrosoft_com/_layouts/15/onedrive.aspx\",\"Operation\":\"PageViewed\",\"OrganizationId\":\"b86ab9d4-fcf1-4b11-8a06-7a8f91b47fbd\",\"RecordType\":4,\"Site\":\"d5180cfc-3479-44d6-b410-8c985ac894e3\",\"UserAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:72.0) Gecko/20100101 Firefox/72.0\",\"UserId\":\"asr@testsiem.onmicrosoft.com\",\"UserKey\":\"i:0h.f|membership|1003200096971f55@live.com\",\"UserType\":0,\"Version\":1,\"WebId\":\"8c5c94bb-8396-470c-87d7-8999f440cd30\",\"Workload\":\"OneDrive\"}",
+        "outcome": "success",
+        "provider": "OneDrive",
+        "type": [
+            "info"
+        ]
+    },
+    "host": {
+        "id": "b86ab9d4-fcf1-4b11-8a06-7a8f91b47fbd",
+        "name": "testsiem.onmicrosoft.com"
+    },
+    "input": {
+        "type": "cel"
+    },
+    "network": {
+        "type": "ipv4"
+    },
+    "o365": {
+        "audit": {
+            "CorrelationId": "622b339f-4000-a000-f25f-92b3478c7a25",
+            "CreationTime": "2020-02-07T16:43:53",
+            "CustomUniqueId": true,
+            "EventSource": "SharePoint",
+            "ExtendedProperties": {
+                "additionalDetails": {
+                    "DeviceId": "62eedfc0-b73c-206c-a59d-16457c7ebcd8",
+                    "DeviceOSType": "Linux"
+                }
+            },
+            "ItemType": "Page",
+            "ListItemUniqueId": "59a8433d-9bb8-cfef-6edc-4c0fc8b86875",
+            "ObjectId": "https://testsiem-my.sharepoint.com/personal/asr_testsiem_onmicrosoft_com/_layouts/15/onedrive.aspx",
+            "RecordType": "4",
+            "Site": "d5180cfc-3479-44d6-b410-8c985ac894e3",
+            "UserId": "asr@testsiem.onmicrosoft.com",
+            "UserKey": "i:0h.f|membership|1003200096971f55@live.com",
+            "UserType": "0",
+            "Version": "1",
+            "WebId": "8c5c94bb-8396-470c-87d7-8999f440cd30"
+        }
+    },
+    "organization": {
+        "id": "b86ab9d4-fcf1-4b11-8a06-7a8f91b47fbd"
+    },
+    "related": {
+        "hosts": [
+            "testsiem.onmicrosoft.com"
+        ],
+        "ip": [
+            "213.97.47.133"
+        ],
+        "user": [
+            "asr",
+            "asr@testsiem.onmicrosoft.com"
+        ]
+    },
+    "source": {
+        "ip": "213.97.47.133"
+    },
+    "tags": [
+        "preserve_original_event",
+        "forwarded",
+        "o365-cel"
+    ],
+    "user": {
+        "domain": "testsiem.onmicrosoft.com",
+        "email": "asr@testsiem.onmicrosoft.com",
+        "id": "asr@testsiem.onmicrosoft.com",
+        "name": "asr"
+    },
+    "user_agent": {
+        "device": {
+            "name": "Mac"
+        },
+        "name": "Firefox",
+        "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:72.0) Gecko/20100101 Firefox/72.0",
+        "os": {
+            "full": "Mac OS X 10.14",
+            "name": "Mac OS X",
+            "version": "10.14"
+        },
+        "version": "72.0"
+    }
+}
+```
+
+### Vendor documentation links
+
+You can find more information about the Microsoft Office 365 APIs and audit logs in these resources:
+- [Office 365 Management Activity API Reference](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference)
+- [Audit Log Record Type Documentation](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype)
+- [Microsoft Purview Audit Log Setup](https://learn.microsoft.com/en-us/purview/audit-log-enable-disable)
+- [Register an App in Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
+- [Elastic CEL Input Documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-cel)
