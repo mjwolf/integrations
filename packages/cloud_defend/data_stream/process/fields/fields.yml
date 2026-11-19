@@ -16,3 +16,35 @@
 - name: orchestrator.resource.annotation
   type: keyword
   description: An array of annotations added to the resource. e.g. ['key:value', 'key2:value2']
+- name: process.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.end
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.parent.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.entry_leader.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.group_leader.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.session_leader.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.previous
+  type: nested
+  description: Previous executions of the process (for example, an exec chain such as bash -> env -> sleep), kept as nested objects so each entry's args stay associated with its executable.
+  fields:
+    - name: args
+      type: keyword
+      ignore_above: 1024
+      description: Array of process arguments for this previous execution.
+    - name: executable
+      type: keyword
+      description: Absolute path to the executable of this previous execution.
+      multi_fields:
+        - name: text
+          type: match_only_text

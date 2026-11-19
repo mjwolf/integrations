@@ -16,3 +16,18 @@
 - name: orchestrator.resource.annotation
   type: keyword
   description: An array of annotations added to the resource. e.g. ['key:value', 'key2:value2']
+- name: process.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.parent.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.entry_leader.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.group_leader.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
+- name: process.session_leader.start
+  type: date_nanos
+  description: Process timestamp with nanosecond precision.
